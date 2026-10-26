@@ -1,6 +1,7 @@
 """Application settings, loaded from environment variables and an optional .env file."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import SecretStr
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
 
     groq_api_key: SecretStr | None = None
     ollama_base_url: str = "http://localhost:11434"
+
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    catalog_index_dir: Path = Path(".cache/catalog_index")
 
 
 @lru_cache
