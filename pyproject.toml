@@ -15,6 +15,7 @@ dependencies = [
     "langchain-ollama>=1.1.0",
     "pandas>=3.1.0",
     "pydantic-settings>=2.16.1",
+    "rank-bm25>=0.2.2",
 ]
 
 [build-system]
@@ -46,3 +47,7 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.17.2",
 ]
+
+[[tool.mypy.overrides]]
+module = ["rank_bm25"]
+ignore_missing_imports = true
