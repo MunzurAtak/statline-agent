@@ -1,0 +1,20 @@
+{"question": "Hoeveel inwoners heeft Rotterdam?", "expected": ["03759ned", "70072ned", "37230ned"]}
+{"question": "Wat is de gemiddelde WOZ-waarde van woningen in Utrecht?", "expected": ["85036NED", "70072ned"]}
+{"question": "Hoe hoog is de werkloosheid in Nederland?", "expected": ["80590ned"]}
+{"question": "Hoeveel bedrijven gingen failliet in 2024?", "expected": ["82242NED", "82244NED", "82522NED", "83085NED"]}
+{"question": "Wat is de inflatie dit jaar?", "expected": ["86141NED", "86143NED", "86142NED"]}
+{"question": "Hoeveel mensen zijn er overleden in 2023?", "expected": ["37979ned", "03747", "37168", "37259ned", "83474NED", "70703ned"]}
+{"question": "Hoe ontwikkelt de uitstoot van broeikasgassen zich?", "expected": ["84979NED", "85669NED", "83300NED", "85668NED"]}
+{"question": "Hoeveel zonnepanelen liggen er op woningen in mijn gemeente?", "expected": ["85005NED", "85004NED"]}
+{"question": "Hoeveel jongeren krijgen jeugdzorg?", "expected": ["85099NED", "85100NED", "85095NED", "85094NED", "85098NED"]}
+{"question": "Hoeveel hotelovernachtingen waren er in Amsterdam?", "expected": ["82061NED", "82621NED"]}
+{"question": "Wat is de gemiddelde verkoopprijs van een koopwoning?", "expected": ["83625NED", "85773NED", "85792NED"]}
+{"question": "Hoeveel personenauto's zijn er per gemeente?", "expected": ["85237NED", "85235NED"]}
+{"question": "Hoeveel mensen hebben een bijstandsuitkering?", "expected": ["82015NED", "85615NED", "85585NED", "85617NED"]}
+{"question": "Wat is het gemiddelde inkomen van huishoudens per regio?", "expected": ["86161NED", "83932NED", "84493NED", "70072ned"]}
+{"question": "Hoeveel woningen zijn er in Nederland?", "expected": ["85035NED", "86079NED", "70072ned"]}
+{"question": "Hoeveel mensen werken in de zorg?", "expected": ["83626NED", "83582NED", "81278ned"]}
+{"question": "Hoeveel misdrijven worden er geregistreerd per gemeente?", "expected": ["83648NED"]}
+{"question": "Hoe hard groeit de Nederlandse economie?", "expected": ["85879NED", "85880NED", "85865NED"]}
+{"question": "Hoeveel immigranten kwamen er naar Nederland?", "expected": ["85468NED", "37259ned", "83474NED"]}
+{"question": "Hoeveel mensen gebruiken Wmo-voorzieningen?", "expected": ["85896NED", "86050NED", "86051NED", "86060NED"]}
