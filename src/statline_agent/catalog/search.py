@@ -10,6 +10,7 @@ from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from pydantic import PrivateAttr
 from rank_bm25 import BM25Okapi
+from snowballstemmer import stemmer
 
 from statline_agent.catalog.index import CatalogIndex
 
@@ -21,11 +22,14 @@ ik je jij we wij ze zij hun mijn ons onze ook nog niet geen meer dan sinds
 """
 STOPWORDS = frozenset(_STOPWORDS_TEXT.split())
 _TOKEN = re.compile(r"\w+", re.UNICODE)
+_STEMMER = stemmer("dutch_porter")
 
 
 def tokenize(text: str) -> list[str]:
-    """Lowercase word tokens without stopwords and single characters."""
-    return [t for t in _TOKEN.findall(text.lower()) if t not in STOPWORDS and len(t) > 1]
+    """Lowercase, drop stopwords, then stem: "gemeenten" and "gemeente" both become "gemeent"."""
+    words = [t for t in _TOKEN.findall(text.lower()) if t not in STOPWORDS and len(t) > 1]
+    stems: list[str] = _STEMMER.stemWords(words)
+    return stems
 
 
 def reciprocal_rank_fusion(

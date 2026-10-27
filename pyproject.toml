@@ -16,6 +16,7 @@ dependencies = [
     "pandas>=3.1.0",
     "pydantic-settings>=2.16.1",
     "rank-bm25>=0.2.2",
+    "snowballstemmer>=3.1.1",
 ]
 
 [build-system]
@@ -49,5 +50,5 @@ dev = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["rank_bm25"]
+module = ["rank_bm25", "snowballstemmer"]
 ignore_missing_imports = true

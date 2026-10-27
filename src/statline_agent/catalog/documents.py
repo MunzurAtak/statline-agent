@@ -5,9 +5,10 @@ from collections.abc import Iterable
 
 from langchain_core.documents import Document
 
+from statline_agent.catalog.enrichment import TableMetadata
 from statline_agent.cbs import DatasetInfo
 
-MAX_DESCRIPTION_CHARS = 500
+MAX_DESCRIPTION_CHARS = 300
 _HTML_TAG = re.compile(r"<[^>]+>")
 _WHITESPACE = re.compile(r"\s+")
 
@@ -22,11 +23,25 @@ def select_datasets(datasets: Iterable[DatasetInfo]) -> list[DatasetInfo]:
     return [d for d in datasets if d.is_active and d.has_odata]
 
 
-def dataset_to_document(dataset: DatasetInfo) -> Document:
-    description = clean_text(dataset.description)[:MAX_DESCRIPTION_CHARS]
+def dataset_to_document(dataset: DatasetInfo, metadata: TableMetadata | None = None) -> Document:
+    """Build the searchable text for one table.
+
+    Order matters: the embedding model only reads the first ~128 tokens, so the most
+    informative parts (title, summary, measures) come first. BM25 reads everything.
+    """
+    parts = [dataset.title]
+    if metadata:
+        if metadata.summary:
+            parts.append(clean_text(metadata.summary))
+        if metadata.measures:
+            parts.append("Onderwerpen: " + "; ".join(metadata.measures))
+        if metadata.dimensions:
+            parts.append("Indeling: " + ", ".join(metadata.dimensions))
+    parts.append(clean_text(dataset.description)[:MAX_DESCRIPTION_CHARS])
+
     return Document(
         id=dataset.identifier,
-        page_content=f"{dataset.title}\n{description}".strip(),
+        page_content="\n".join(p for p in parts if p),
         metadata={
             "table_id": dataset.identifier,
             "title": dataset.title,

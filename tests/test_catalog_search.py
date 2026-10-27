@@ -26,8 +26,12 @@ def retriever() -> HybridCatalogRetriever:
     return HybridCatalogRetriever(index=index, k=3, candidates=4)
 
 
-def test_tokenize_removes_stopwords_and_punctuation() -> None:
-    assert tokenize("Hoeveel mensen werken in de zorg?") == ["mensen", "werken", "zorg"]
+def test_tokenize_removes_stopwords_and_punctuation_and_stems() -> None:
+    assert tokenize("Hoeveel mensen werken in de zorg?") == ["mens", "werk", "zorg"]
+
+
+def test_tokenize_maps_singular_and_plural_to_same_stem() -> None:
+    assert tokenize("gemeente") == tokenize("gemeenten")
 
 
 def test_rrf_rewards_items_ranked_high_by_both_methods() -> None:
