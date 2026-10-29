@@ -30,7 +30,9 @@ in plaats van "mensen met een baan".
 - Laat plaatsnamen, jaartallen en vraagwoorden weg; die staan niet in tabeltitels.
 - Elke zoekopdracht beschrijft zelfstandig het onderwerp; dus niet alleen "gemeente" of \
 "regio".
-- Elke zoekopdracht is maximaal 6 woorden."""
+- Elke zoekopdracht is maximaal 6 woorden.
+- Beantwoord de vraag nooit zelf, ook niet als hij niet over statistiek gaat; geef alleen \
+zoekopdrachten."""
 
 PROMPT = ChatPromptTemplate.from_messages([("system", SYSTEM_PROMPT), ("human", "{question}")])
 

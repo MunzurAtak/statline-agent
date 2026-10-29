@@ -20,3 +20,14 @@ def test_format_select_update_without_table() -> None:
 
 def test_unknown_node_falls_back_to_key_values() -> None:
     assert format_update("other", {"question": "q"}) == ["[other]", "  question: q"]
+
+
+def test_format_plan_update_shows_filters_and_notes() -> None:
+    update: AgentState = {
+        "measure_titles": ["Totale bevolking"],
+        "filters": {"RegioS": ["GM0599"]},
+        "plan_notes": ["Niet gevonden: X."],
+    }
+    lines = format_update("plan_query", update)
+    assert "  filter RegioS: ['GM0599']" in lines
+    assert lines[-1] == "  let op: Niet gevonden: X."

@@ -7,6 +7,7 @@ from langchain_core.embeddings import DeterministicFakeEmbedding
 from statline_agent.agent import AgentContext, Candidate, build_graph
 from statline_agent.agent.nodes.search import TableChoice, format_candidates
 from statline_agent.catalog import CatalogIndex, HybridCatalogRetriever
+from statline_agent.cbs import CBSClient
 from tests.fakes import FakeStructuredChatModel, prompt_text
 
 
@@ -38,8 +39,12 @@ def retriever() -> HybridCatalogRetriever:
 def run(
     retriever: HybridCatalogRetriever, llm: FakeStructuredChatModel, question: str
 ) -> dict[str, Any]:
+    """Run the graph; the fake LLM has no QueryPlan response, so stop before plan_query."""
+    context = AgentContext(llm, retriever, CBSClient(), DeterministicFakeEmbedding(size=8))
     graph = build_graph()
-    return dict(graph.invoke({"question": question}, context=AgentContext(llm, retriever)))
+    return dict(
+        graph.invoke({"question": question}, context=context, interrupt_before=["plan_query"])
+    )
 
 
 def test_graph_selects_table_chosen_by_llm(retriever: HybridCatalogRetriever) -> None:

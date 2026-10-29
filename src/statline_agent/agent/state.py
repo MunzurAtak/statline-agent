@@ -42,3 +42,6 @@ class AgentState(TypedDict, total=False):
     table_id: str | None
     table_title: str
     selection_reason: str
+    filters: dict[str, list[str]]  # OData filters: {"Measure": [...], "RegioS": [...], ...}
+    measure_titles: list[str]
+    plan_notes: list[str]  # things the agent could not do exactly as asked

@@ -22,9 +22,17 @@ def _select(update: AgentState) -> list[str]:
     return [f"  gekozen: {table} {title}".rstrip(), f"  reden: {update.get('selection_reason')}"]
 
 
+def _plan(update: AgentState) -> list[str]:
+    lines = [f"  onderwerpen: {update.get('measure_titles', [])}"]
+    lines += [f"  filter {key}: {codes}" for key, codes in update.get("filters", {}).items()]
+    lines += [f"  let op: {note}" for note in update.get("plan_notes", [])]
+    return lines
+
+
 FORMATTERS: dict[str, Callable[[AgentState], list[str]]] = {
     "search_tables": _search,
     "select_table": _select,
+    "plan_query": _plan,
 }
 
 
