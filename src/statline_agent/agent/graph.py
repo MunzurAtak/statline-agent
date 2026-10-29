@@ -2,16 +2,17 @@
 
 search_tables -> select_table -> plan_query -> fetch_data -> write_sql <-> run_sql
                       |                            |                          |
-                     END (no table)               END (error)                END
+                      +-------- (no table) ------- + ------ (error) --------- +--> compose_answer
 """
 
 from typing import Literal
 
-from langgraph.graph import START, StateGraph
+from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from statline_agent.agent.context import AgentContext
 from statline_agent.agent.nodes import (
+    compose_answer,
     fetch_data,
     plan_query,
     run_sql,
@@ -25,20 +26,20 @@ from statline_agent.agent.state import AgentState
 # The Literal return types tell LangGraph which edges exist (used when drawing the graph).
 
 
-def route_after_selection(state: AgentState) -> Literal["plan_query", "__end__"]:
-    """Stop when no suitable table was found; otherwise continue with planning."""
-    return "plan_query" if state.get("table_id") else "__end__"
+def route_after_selection(state: AgentState) -> Literal["plan_query", "compose_answer"]:
+    """No suitable table: go straight to the answer, which explains that."""
+    return "plan_query" if state.get("table_id") else "compose_answer"
 
 
-def route_after_fetch(state: AgentState) -> Literal["write_sql", "__end__"]:
-    return "__end__" if state.get("error") else "write_sql"
+def route_after_fetch(state: AgentState) -> Literal["write_sql", "compose_answer"]:
+    return "compose_answer" if state.get("error") else "write_sql"
 
 
-def route_after_sql(state: AgentState) -> Literal["write_sql", "__end__"]:
+def route_after_sql(state: AgentState) -> Literal["write_sql", "compose_answer"]:
     """The self-correction loop: retry with the error message, at most MAX_SQL_ATTEMPTS times."""
     if state.get("sql_error") and state.get("attempts", 0) < MAX_SQL_ATTEMPTS:
         return "write_sql"
-    return "__end__"
+    return "compose_answer"
 
 
 def build_graph() -> CompiledStateGraph[AgentState, AgentContext, AgentState, AgentState]:
@@ -49,6 +50,7 @@ def build_graph() -> CompiledStateGraph[AgentState, AgentContext, AgentState, Ag
     graph.add_node("fetch_data", fetch_data)
     graph.add_node("write_sql", write_sql)
     graph.add_node("run_sql", run_sql)
+    graph.add_node("compose_answer", compose_answer)
 
     graph.add_edge(START, "search_tables")
     graph.add_edge("search_tables", "select_table")
@@ -57,4 +59,5 @@ def build_graph() -> CompiledStateGraph[AgentState, AgentContext, AgentState, Ag
     graph.add_conditional_edges("fetch_data", route_after_fetch)
     graph.add_edge("write_sql", "run_sql")
     graph.add_conditional_edges("run_sql", route_after_sql)
+    graph.add_edge("compose_answer", END)
     return graph.compile()

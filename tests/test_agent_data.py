@@ -47,7 +47,10 @@ def run(context: AgentContext, *sql_responses: SqlQuery) -> dict[str, Any]:
     assert isinstance(context.llm, FakeStructuredChatModel)
     responses: list[BaseModel] = [TableChoice(table_id="70072ned", reason="regio"), PLAN]
     context.llm.responses = [*responses, *sql_responses]
-    return dict(build_graph().invoke({"question": "Hoeveel inwoners?"}, context=context))
+    state = build_graph().invoke(
+        {"question": "Hoeveel inwoners?"}, context=context, interrupt_before=["compose_answer"]
+    )
+    return dict(state)
 
 
 def test_happy_path_returns_query_result(context: AgentContext) -> None:

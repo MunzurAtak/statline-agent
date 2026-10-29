@@ -14,6 +14,7 @@ dependencies = [
     "langchain-groq>=1.1.3",
     "langchain-ollama>=1.1.0",
     "pandas>=3.1.0",
+    "plotly>=7.1.0",
     "pydantic-settings>=2.16.1",
     "rank-bm25>=0.2.2",
     "snowballstemmer>=3.1.1",
@@ -53,5 +54,5 @@ dev = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["rank_bm25", "snowballstemmer"]
+module = ["plotly.*", "rank_bm25", "snowballstemmer"]
 ignore_missing_imports = true

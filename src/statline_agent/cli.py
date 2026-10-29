@@ -4,12 +4,16 @@ Usage: uv run statline-agent "Hoeveel inwoners heeft Rotterdam?"
 """
 
 import argparse
+import textwrap
+import webbrowser
 from collections.abc import Callable
-from typing import Any
+from pathlib import Path
 
 from statline_agent.agent import AgentState, build_graph, create_context
+from statline_agent.charts import build_figure
 
 MAX_ROWS_SHOWN = 10
+DEFAULT_CHART_PATH = Path(".cache/charts/answer.html")
 
 
 def _search(update: AgentState) -> list[str]:
@@ -52,6 +56,14 @@ def _run_sql(update: AgentState) -> list[str]:
     ]
 
 
+def _answer(update: AgentState) -> list[str]:
+    lines = ["", *textwrap.wrap(update.get("answer", ""), width=100), ""]
+    source = update.get("source")
+    if source:
+        lines.append(f"Bron: CBS, {source.title} ({source.table_id}) - {source.url}")
+    return lines
+
+
 FORMATTERS: dict[str, Callable[[AgentState], list[str]]] = {
     "search_tables": _search,
     "select_table": _select,
@@ -59,6 +71,7 @@ FORMATTERS: dict[str, Callable[[AgentState], list[str]]] = {
     "fetch_data": _fetch,
     "write_sql": _write_sql,
     "run_sql": _run_sql,
+    "compose_answer": _answer,
 }
 
 
@@ -71,18 +84,37 @@ def format_update(node: str, update: AgentState) -> list[str]:
     return [f"[{node}]", *body]
 
 
+def save_chart(state: AgentState, path: Path) -> Path | None:
+    """Render the chart spec from the final state to an HTML file (if there is a chart)."""
+    chart = state.get("chart")
+    if chart is None:
+        return None
+    path.parent.mkdir(parents=True, exist_ok=True)
+    build_figure(chart, state.get("result_rows", [])).write_html(path, include_plotlyjs="cdn")
+    return path
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Ask a question about CBS open data.")
     parser.add_argument("question", help="Your question, e.g. 'Hoeveel inwoners heeft Rotterdam?'")
+    parser.add_argument("--chart", type=Path, default=DEFAULT_CHART_PATH, help="HTML output path")
+    parser.add_argument("--open", action="store_true", help="Open the chart in your browser")
     args = parser.parse_args(argv)
 
     graph = build_graph()
     context = create_context()
+    state: AgentState = {}
     # stream_mode="updates" yields {node_name: partial_state} after every node
-    chunk: dict[str, Any]
     for chunk in graph.stream({"question": args.question}, context=context, stream_mode="updates"):
         for node, update in chunk.items():
             print("\n".join(format_update(node, update)))
+            state.update(update)
+
+    chart_path = save_chart(state, args.chart)
+    if chart_path:
+        print(f"Grafiek opgeslagen in {chart_path}")
+        if args.open:
+            webbrowser.open(chart_path.resolve().as_uri())
 
 
 if __name__ == "__main__":

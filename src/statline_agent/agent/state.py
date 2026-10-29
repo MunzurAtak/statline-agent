@@ -5,6 +5,8 @@ from typing import Any, TypedDict
 from langchain_core.documents import Document
 from pydantic import BaseModel
 
+from statline_agent.charts import ChartSpec
+
 MAX_DESCRIPTION_CHARS = 200
 
 
@@ -33,6 +35,12 @@ class Candidate(BaseModel):
         )
 
 
+class Source(BaseModel):
+    table_id: str
+    title: str
+    url: str
+
+
 class AgentState(TypedDict, total=False):
     """total=False: every node returns only the keys it changes."""
 
@@ -54,3 +62,6 @@ class AgentState(TypedDict, total=False):
     result_columns: list[str]
     result_rows: list[dict[str, Any]]
     error: str  # unrecoverable problem (e.g. CBS unavailable)
+    answer: str
+    chart: ChartSpec | None
+    source: Source | None
