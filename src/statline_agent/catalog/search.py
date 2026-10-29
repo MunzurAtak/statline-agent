@@ -2,7 +2,7 @@
 
 import re
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
@@ -19,6 +19,7 @@ _STOPWORDS_TEXT = """
 de het een en of van in op te voor met naar per door bij aan om uit over tot als
 is zijn was waren wordt worden er die dat deze dit wat hoe hoeveel welke wie waar wanneer
 ik je jij we wij ze zij hun mijn ons onze ook nog niet geen meer dan sinds
+heeft hebben had gaat gaan ging gingen komt komen kwam kwamen krijgt krijgen ligt liggen zich
 """
 STOPWORDS = frozenset(_STOPWORDS_TEXT.split())
 _TOKEN = re.compile(r"\w+", re.UNICODE)
@@ -51,6 +52,7 @@ class HybridCatalogRetriever(BaseRetriever):
     """LangChain retriever that finds the most relevant CBS tables for a question."""
 
     index: CatalogIndex
+    rewriter: Callable[[str], list[str]] | None = None  # optional LLM query rewriting
     k: int = 5
     candidates: int = 25  # how many results each method contributes before fusion
     rrf_k: int = 60
@@ -78,10 +80,15 @@ class HybridCatalogRetriever(BaseRetriever):
     def _get_relevant_documents(
         self, query: str, *, run_manager: CallbackManagerForRetrieverRun
     ) -> list[Document]:
-        vector = self.vector_ranking(query)
-        keyword = self.keyword_ranking(query)
-        fused = reciprocal_rank_fusion([vector, keyword], k=self.rrf_k)[: self.k]
+        queries = [query, *(self.rewriter(query) if self.rewriter else [])]
 
+        # Each query contributes a vector and a keyword ranking; RRF fuses all of them.
+        rankings: list[list[str]] = []
+        for q in queries:
+            rankings += [self.vector_ranking(q), self.keyword_ranking(q)]
+        fused = reciprocal_rank_fusion(rankings, k=self.rrf_k)[: self.k]
+
+        vector, keyword = rankings[0], rankings[1]  # ranks for the original question
         results = []
         for table_id, score in fused:
             doc = self._by_id[table_id]
@@ -90,6 +97,7 @@ class HybridCatalogRetriever(BaseRetriever):
                 "score": round(score, 5),
                 "vector_rank": vector.index(table_id) + 1 if table_id in vector else None,
                 "keyword_rank": keyword.index(table_id) + 1 if table_id in keyword else None,
+                "search_queries": queries,
             }
             results.append(Document(id=doc.id, page_content=doc.page_content, metadata=metadata))
         return results

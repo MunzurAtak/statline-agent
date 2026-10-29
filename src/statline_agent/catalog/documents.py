@@ -26,17 +26,14 @@ def select_datasets(datasets: Iterable[DatasetInfo]) -> list[DatasetInfo]:
 def dataset_to_document(dataset: DatasetInfo, metadata: TableMetadata | None = None) -> Document:
     """Build the searchable text for one table.
 
-    Order matters: the embedding model only reads the first ~128 tokens, so the most
-    informative parts (title, summary, measures) come first. BM25 reads everything.
+    The text is kept short and descriptive: the embedding model only reads ~128 tokens,
+    and an ablation showed that adding the (often generic) measure titles to the text made
+    both BM25 and vector search worse. Measures and dimensions are kept as metadata, so the
+    agent can show them to the LLM when it chooses between candidate tables.
     """
     parts = [dataset.title]
-    if metadata:
-        if metadata.summary:
-            parts.append(clean_text(metadata.summary))
-        if metadata.measures:
-            parts.append("Onderwerpen: " + "; ".join(metadata.measures))
-        if metadata.dimensions:
-            parts.append("Indeling: " + ", ".join(metadata.dimensions))
+    if metadata and metadata.summary:
+        parts.append(clean_text(metadata.summary))
     parts.append(clean_text(dataset.description)[:MAX_DESCRIPTION_CHARS])
 
     return Document(
@@ -48,5 +45,7 @@ def dataset_to_document(dataset: DatasetInfo, metadata: TableMetadata | None = N
             "status": dataset.status,
             "modified": dataset.modified.date().isoformat() if dataset.modified else None,
             "observation_count": dataset.observation_count,
+            "measures": metadata.measures if metadata else [],
+            "dimensions": metadata.dimensions if metadata else [],
         },
     )

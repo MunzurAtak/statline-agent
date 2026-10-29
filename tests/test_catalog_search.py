@@ -58,3 +58,11 @@ def test_invoke_returns_documents_with_ranks(retriever: HybridCatalogRetriever) 
     top = results[0].metadata
     assert top["keyword_rank"] is not None
     assert {"score", "vector_rank", "keyword_rank", "table_id"} <= set(top)
+
+
+def test_rewriter_queries_are_fused_into_results(retriever: HybridCatalogRetriever) -> None:
+    # "baan" matches nothing; the rewritten query finds table B.
+    retriever.rewriter = lambda question: ["werkzame personen zorg"]
+    results = retriever.invoke("baan")
+    assert results[0].metadata["table_id"] == "B"
+    assert results[0].metadata["search_queries"] == ["baan", "werkzame personen zorg"]

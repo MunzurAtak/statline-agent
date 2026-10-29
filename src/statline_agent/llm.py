@@ -1,7 +1,12 @@
 """Chat model factory, so the rest of the code never depends on a specific provider."""
 
+from typing import cast
+
 from langchain.chat_models import init_chat_model
-from langchain_core.language_models import BaseChatModel
+from langchain_core.language_models import BaseChatModel, LanguageModelInput
+from langchain_core.runnables import Runnable
+from langchain_groq import ChatGroq
+from pydantic import BaseModel
 
 from statline_agent.config import Settings, get_settings
 
@@ -32,3 +37,19 @@ def get_chat_model(settings: Settings | None = None) -> BaseChatModel:
         temperature=settings.llm_temperature,
         base_url=settings.ollama_base_url,
     )
+
+
+def with_structured_output[T: BaseModel](
+    llm: BaseChatModel, schema: type[T]
+) -> Runnable[LanguageModelInput, T]:
+    """Make the model return an instance of `schema`, using JSON-schema mode.
+
+    The default (function calling) is unreliable with Groq's gpt-oss models: they often
+    answer in plain text instead of calling the tool ("tool_use_failed"). In JSON-schema
+    mode with strict=True, Groq constrains the output server-side to the schema.
+    """
+    if isinstance(llm, ChatGroq):
+        runnable = llm.with_structured_output(schema, method="json_schema", strict=True)
+    else:
+        runnable = llm.with_structured_output(schema, method="json_schema")
+    return cast(Runnable[LanguageModelInput, T], runnable)

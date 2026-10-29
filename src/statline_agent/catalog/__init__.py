@@ -4,6 +4,7 @@ from statline_agent.catalog.documents import clean_text, dataset_to_document, se
 from statline_agent.catalog.embeddings import FastEmbedEmbeddings
 from statline_agent.catalog.enrichment import TableMetadata, fetch_all_metadata
 from statline_agent.catalog.index import CatalogIndex
+from statline_agent.catalog.rewrite import QueryRewriter, SearchQueries
 from statline_agent.catalog.search import (
     HybridCatalogRetriever,
     reciprocal_rank_fusion,
@@ -14,6 +15,8 @@ __all__ = [
     "CatalogIndex",
     "FastEmbedEmbeddings",
     "HybridCatalogRetriever",
+    "QueryRewriter",
+    "SearchQueries",
     "TableMetadata",
     "clean_text",
     "dataset_to_document",

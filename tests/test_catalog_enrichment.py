@@ -31,9 +31,10 @@ def test_cache_prevents_refetching(
     assert "70072ned" in result
 
 
-def test_document_includes_measures_before_description() -> None:
+def test_document_text_has_summary_and_metadata_has_measures() -> None:
     dataset = DatasetInfo(identifier="T1", title="Kerncijfers", description="Lang verhaal")
     meta = TableMetadata("T1", "Kerncijfers per regio", ["Totale bevolking"], ["Regio's"])
-    text = dataset_to_document(dataset, meta).page_content
-    assert text.index("Onderwerpen: Totale bevolking") < text.index("Lang verhaal")
-    assert "Indeling: Regio's" in text
+    doc = dataset_to_document(dataset, meta)
+    assert doc.page_content == "Kerncijfers\nKerncijfers per regio\nLang verhaal"
+    assert doc.metadata["measures"] == ["Totale bevolking"]
+    assert doc.metadata["dimensions"] == ["Regio's"]
