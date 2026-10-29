@@ -19,6 +19,9 @@ dependencies = [
     "snowballstemmer>=3.1.1",
 ]
 
+[project.scripts]
+statline-agent = "statline_agent.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
