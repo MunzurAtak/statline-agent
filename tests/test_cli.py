@@ -31,3 +31,10 @@ def test_format_plan_update_shows_filters_and_notes() -> None:
     lines = format_update("plan_query", update)
     assert "  filter RegioS: ['GM0599']" in lines
     assert lines[-1] == "  let op: Niet gevonden: X."
+
+
+def test_format_run_sql_shows_error_or_rows() -> None:
+    failed = format_update("run_sql", {"attempts": 1, "sql_error": "kolom bestaat niet"})
+    assert failed[1] == "  fout bij poging 1: kolom bestaat niet"
+    ok = format_update("run_sql", {"attempts": 2, "result_rows": [{"jaar": "2024"}]})
+    assert ok[1:] == ["  1 rijen (poging 2)", "  {'jaar': '2024'}"]

@@ -4,7 +4,9 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
+from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pandas as pd
@@ -12,10 +14,21 @@ import pandas as pd
 from statline_agent.cbs.client import CBSClient, CBSError
 
 DEFAULT_DB_PATH = Path(".cache/statline.duckdb")
+QUERY_VIEW = "data"  # generated SQL always reads from this view
+MAX_DISTINCT_SHOWN = 12
 
 
 class NoDataError(CBSError):
     """Raised when a query matches no observations (e.g. wrong codes in the filter)."""
+
+
+class QueryError(ValueError):
+    """Raised when generated SQL is not allowed or fails; the message goes back to the LLM."""
+
+
+def _to_json_value(value: Any) -> Any:
+    """DuckDB can return Decimal for some aggregates; keep results JSON-serializable."""
+    return float(value) if isinstance(value, Decimal) else value
 
 
 def cache_table_name(table_id: str, filters: Mapping[str, Sequence[str]] | None = None) -> str:
@@ -42,7 +55,9 @@ class DataStore:
         if str(path) != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
         self._client = client
-        self._con = duckdb.connect(str(path))
+        # No file system or network access from SQL: generated queries can only read the
+        # tables in this database (e.g. read_csv('/etc/passwd') fails).
+        self._con = duckdb.connect(str(path), config={"enable_external_access": False})
 
     def close(self) -> None:
         self._con.close()
@@ -65,6 +80,56 @@ class DataStore:
 
     def query(self, sql: str) -> pd.DataFrame:
         return self._con.execute(sql).df()
+
+    def _rows(self, sql: str) -> list[tuple[Any, ...]]:
+        return self._con.execute(sql).fetchall()
+
+    def describe(self, table: str) -> str:
+        """Compact overview of a cached table for the LLM: columns and example values."""
+        count = self._rows(f'SELECT count(*) FROM "{table}"')[0][0]
+        columns = [row[0] for row in self._rows(f'DESCRIBE "{table}"')]
+        lines = [f"Tabel {QUERY_VIEW} ({count} rijen). Kolommen:"]
+        for column in columns:
+            if column.endswith("_title") or column == "Unit":
+                limit = MAX_DISTINCT_SHOWN + 1
+                sql = f'SELECT DISTINCT "{column}" FROM "{table}" ORDER BY 1 LIMIT {limit}'
+                values = [str(row[0]) for row in self._rows(sql)]
+                more = " ..." if len(values) > MAX_DISTINCT_SHOWN else ""
+                lines.append(f"- {column}: {'; '.join(values[:MAX_DISTINCT_SHOWN])}{more}")
+            elif column == "Value":
+                low, high = self._rows(f'SELECT min("Value"), max("Value") FROM "{table}"')[0]
+                lines.append(f"- Value: getal (min {low}, max {high})")
+            else:
+                lines.append(f"- {column}")
+        return "\n".join(lines)
+
+    def run_select(
+        self, sql: str, source_table: str, max_rows: int = 200
+    ) -> tuple[list[str], list[dict[str, Any]]]:
+        """Run one read-only SELECT against `data` (a view on source_table).
+
+        Returns (columns, rows). Raises QueryError with a message the LLM can act on.
+        """
+        sql = sql.strip().rstrip(";")
+        try:
+            statements = self._con.extract_statements(sql)
+        except duckdb.Error as exc:
+            raise QueryError(f"SQL kan niet worden gelezen: {exc}") from exc
+        if len(statements) != 1 or statements[0].type != duckdb.StatementType.SELECT:
+            raise QueryError("Alleen precies één SELECT-query is toegestaan.")
+
+        # A cursor is a separate connection: the temporary view is private to this query.
+        cursor = self._con.cursor()
+        try:
+            cursor.execute(f'CREATE TEMP VIEW {QUERY_VIEW} AS SELECT * FROM "{source_table}"')
+            cursor.execute(sql)
+            columns = [d[0] for d in cursor.description or []]
+            rows = cursor.fetchmany(max_rows)
+        except duckdb.Error as exc:
+            raise QueryError(str(exc)) from exc
+        finally:
+            cursor.close()
+        return columns, [dict(zip(columns, map(_to_json_value, row), strict=True)) for row in rows]
 
     def _fetch_labelled(
         self, table_id: str, filters: Mapping[str, Sequence[str]] | None

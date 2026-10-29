@@ -8,7 +8,7 @@ from statline_agent.agent import AgentContext, build_graph
 from statline_agent.agent.nodes.plan import DimensionChoice, QueryPlan, shortlist_measures
 from statline_agent.agent.nodes.search import TableChoice
 from statline_agent.catalog import CatalogIndex, HybridCatalogRetriever
-from statline_agent.cbs import CBSClient, Measure
+from statline_agent.cbs import CBSClient, DataStore, Measure
 from tests.fakes import FakeStructuredChatModel, prompt_text
 
 # Uses the recorded 70072ned fixtures: 15 measures, RegioS codes NL01..PV29, Perioden 1995-2009.
@@ -23,13 +23,17 @@ def context(cbs_client: CBSClient) -> AgentContext:
     )
     embeddings = DeterministicFakeEmbedding(size=8)
     retriever = HybridCatalogRetriever(index=CatalogIndex.build([doc], embeddings), k=1)
-    return AgentContext(FakeStructuredChatModel(), retriever, cbs_client, embeddings)
+    store = DataStore(cbs_client, ":memory:")
+    return AgentContext(FakeStructuredChatModel(), retriever, cbs_client, embeddings, store)
 
 
 def run(context: AgentContext, plan: QueryPlan) -> dict[str, Any]:
     assert isinstance(context.llm, FakeStructuredChatModel)
     context.llm.responses = [TableChoice(table_id="70072ned", reason="regio"), plan]
-    return dict(build_graph().invoke({"question": "Bevolking Zuid-Holland"}, context=context))
+    state = build_graph().invoke(
+        {"question": "Bevolking Zuid-Holland"}, context=context, interrupt_before=["fetch_data"]
+    )
+    return dict(state)
 
 
 def make_plan(**overrides: Any) -> QueryPlan:

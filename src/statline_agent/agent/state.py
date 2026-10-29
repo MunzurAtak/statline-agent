@@ -1,6 +1,6 @@
 """The state that flows through the LangGraph agent."""
 
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from langchain_core.documents import Document
 from pydantic import BaseModel
@@ -45,3 +45,12 @@ class AgentState(TypedDict, total=False):
     filters: dict[str, list[str]]  # OData filters: {"Measure": [...], "RegioS": [...], ...}
     measure_titles: list[str]
     plan_notes: list[str]  # things the agent could not do exactly as asked
+    data_table: str  # DuckDB table with the fetched observations
+    data_overview: str  # compact description of that table for the LLM
+    sql: str
+    sql_explanation: str
+    sql_error: str | None
+    attempts: int  # SQL attempts for the current dataset
+    result_columns: list[str]
+    result_rows: list[dict[str, Any]]
+    error: str  # unrecoverable problem (e.g. CBS unavailable)

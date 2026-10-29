@@ -9,6 +9,8 @@ from typing import Any
 
 from statline_agent.agent import AgentState, build_graph, create_context
 
+MAX_ROWS_SHOWN = 10
+
 
 def _search(update: AgentState) -> list[str]:
     lines = [f"  zoekopdrachten: {update.get('search_queries', [])}"]
@@ -29,10 +31,34 @@ def _plan(update: AgentState) -> list[str]:
     return lines
 
 
+def _fetch(update: AgentState) -> list[str]:
+    if update.get("error"):
+        return [f"  fout: {update['error']}"]
+    return [f"  {update.get('data_overview', '').splitlines()[0]}"]
+
+
+def _write_sql(update: AgentState) -> list[str]:
+    return [f"  {update.get('sql_explanation', '')}", f"  sql: {update.get('sql', '')}"]
+
+
+def _run_sql(update: AgentState) -> list[str]:
+    attempt = update.get("attempts")
+    if update.get("sql_error"):
+        return [f"  fout bij poging {attempt}: {update['sql_error']}"]
+    rows = update.get("result_rows", [])
+    return [
+        f"  {len(rows)} rijen (poging {attempt})",
+        *(f"  {row}" for row in rows[:MAX_ROWS_SHOWN]),
+    ]
+
+
 FORMATTERS: dict[str, Callable[[AgentState], list[str]]] = {
     "search_tables": _search,
     "select_table": _select,
     "plan_query": _plan,
+    "fetch_data": _fetch,
+    "write_sql": _write_sql,
+    "run_sql": _run_sql,
 }
 
 

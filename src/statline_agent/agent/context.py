@@ -16,7 +16,7 @@ from statline_agent.catalog import (
     HybridCatalogRetriever,
     QueryRewriter,
 )
-from statline_agent.cbs import CBSClient
+from statline_agent.cbs import CBSClient, DataStore
 from statline_agent.config import Settings, get_settings
 from statline_agent.llm import get_chat_model
 
@@ -29,6 +29,7 @@ class AgentContext:
     retriever: BaseRetriever
     cbs: CBSClient
     embeddings: Embeddings
+    store: DataStore
 
 
 def create_context(settings: Settings | None = None) -> AgentContext:
@@ -40,4 +41,7 @@ def create_context(settings: Settings | None = None) -> AgentContext:
     retriever = HybridCatalogRetriever(
         index=index, k=SEARCH_CANDIDATES, rewriter=QueryRewriter.from_llm(llm)
     )
-    return AgentContext(llm=llm, retriever=retriever, cbs=CBSClient(), embeddings=embeddings)
+    cbs = CBSClient()
+    return AgentContext(
+        llm=llm, retriever=retriever, cbs=cbs, embeddings=embeddings, store=DataStore(cbs)
+    )

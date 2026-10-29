@@ -1,6 +1,12 @@
 """Client and models for CBS StatLine open data."""
 
-from statline_agent.cbs.cache import DataStore, NoDataError, cache_table_name
+from statline_agent.cbs.cache import (
+    QUERY_VIEW,
+    DataStore,
+    NoDataError,
+    QueryError,
+    cache_table_name,
+)
 from statline_agent.cbs.client import CBSClient, CBSError, QueryTooLargeError, build_filter
 from statline_agent.cbs.models import (
     DatasetInfo,
@@ -11,6 +17,7 @@ from statline_agent.cbs.models import (
 )
 
 __all__ = [
+    "QUERY_VIEW",
     "CBSClient",
     "CBSError",
     "DataStore",
@@ -20,6 +27,7 @@ __all__ = [
     "DimensionCode",
     "Measure",
     "NoDataError",
+    "QueryError",
     "QueryTooLargeError",
     "build_filter",
     "cache_table_name",
