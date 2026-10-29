@@ -90,5 +90,6 @@ def test_describe_lists_columns_and_example_values(loaded: tuple[DataStore, str]
     store, table = loaded
     overview = store.describe(table)
     assert overview.startswith("Tabel data (10 rijen)")
-    assert "- Measure_title: " in overview and "Totale bevolking" in overview
+    assert "- Measure_title: " in overview and "'Totale bevolking'" in overview
+    assert "- Perioden: '1995JJ00'" in overview  # codes are shown too, with exact spelling
     assert "- Value: getal (min" in overview

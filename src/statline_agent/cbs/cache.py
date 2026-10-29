@@ -90,17 +90,17 @@ class DataStore:
         columns = [row[0] for row in self._rows(f'DESCRIBE "{table}"')]
         lines = [f"Tabel {QUERY_VIEW} ({count} rijen). Kolommen:"]
         for column in columns:
-            if column.endswith("_title") or column == "Unit":
-                limit = MAX_DISTINCT_SHOWN + 1
-                sql = f'SELECT DISTINCT "{column}" FROM "{table}" ORDER BY 1 LIMIT {limit}'
-                values = [str(row[0]) for row in self._rows(sql)]
-                more = " ..." if len(values) > MAX_DISTINCT_SHOWN else ""
-                lines.append(f"- {column}: {'; '.join(values[:MAX_DISTINCT_SHOWN])}{more}")
-            elif column == "Value":
+            if column == "Value":
                 low, high = self._rows(f'SELECT min("Value"), max("Value") FROM "{table}"')[0]
                 lines.append(f"- Value: getal (min {low}, max {high})")
-            else:
-                lines.append(f"- {column}")
+                continue
+            # Example values for every other column, so the LLM sees the exact codes and
+            # spellings (e.g. Perioden = '2015JJ00', RegioS_title = "'s-Gravenhage").
+            limit = MAX_DISTINCT_SHOWN + 1
+            sql = f'SELECT DISTINCT "{column}" FROM "{table}" ORDER BY 1 LIMIT {limit}'
+            values = [repr(row[0]) for row in self._rows(sql)]
+            more = " ..." if len(values) > MAX_DISTINCT_SHOWN else ""
+            lines.append(f"- {column}: {', '.join(values[:MAX_DISTINCT_SHOWN])}{more}")
         return "\n".join(lines)
 
     def run_select(

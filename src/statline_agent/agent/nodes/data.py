@@ -11,6 +11,10 @@ from statline_agent.llm import with_structured_output
 
 MAX_SQL_ATTEMPTS = 3
 MAX_RESULT_ROWS = 100
+EMPTY_RESULT_ERROR = (
+    "De query gaf geen rijen terug. Controleer de WHERE-voorwaarden tegen de voorbeeldwaarden; "
+    "de data is al gefilterd, dus vaak is een WHERE op regio, onderwerp of periode niet nodig."
+)
 
 
 def fetch_data(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
@@ -34,13 +38,16 @@ SQL_SYSTEM_PROMPT = f"""\
 Je bent een data-analist. Schrijf één DuckDB SQL SELECT-query op de tabel `{QUERY_VIEW}` die \
 de vraag beantwoordt.
 
+- De tabel bevat al precies de gevraagde selectie (onderwerpen, regio's en perioden). Filter \
+daar niet opnieuw op, tenzij de vraag om een deel van de gegevens vraagt.
 - Gebruik de *_title-kolommen voor namen (onderwerp, regio, periode) en Value voor de cijfers.
 - Houd het resultaat klein (hooguit 50 rijen) en geschikt voor een grafiek, bijvoorbeeld de \
 kolommen periode, regio en waarde.
 - Sorteer tijdreeksen op de periodecode (de kolom zonder _title), niet op de titel.
 - Bereken afgeleide cijfers zoals verschillen of procentuele groei in SQL als de vraag daarom \
 vraagt.
-- Zet kolomnamen met hoofdletters tussen dubbele aanhalingstekens, bijvoorbeeld "Value"."""
+- Zet kolomnamen met hoofdletters tussen dubbele aanhalingstekens, bijvoorbeeld "Value".
+- Een apostrof in tekst schrijf je dubbel, bijvoorbeeld '''s-Gravenhage' voor 's-Gravenhage."""
 
 SQL_HUMAN_PROMPT = "Vraag: {question}\n\n{overview}{previous}"
 SQL_PROMPT = ChatPromptTemplate.from_messages(
@@ -81,7 +88,7 @@ def run_sql(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
     except QueryError as exc:
         return {"attempts": attempts, "sql_error": str(exc)}
     if not rows:
-        return {"attempts": attempts, "sql_error": "De query gaf geen rijen terug."}
+        return {"attempts": attempts, "sql_error": EMPTY_RESULT_ERROR}
     return {
         "attempts": attempts,
         "sql_error": None,
