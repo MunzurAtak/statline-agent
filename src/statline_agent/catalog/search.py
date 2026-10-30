@@ -56,6 +56,7 @@ class HybridCatalogRetriever(BaseRetriever):
     k: int = 5
     candidates: int = 25  # how many results each method contributes before fusion
     rrf_k: int = 60
+    boost_high_value: bool = True  # prefer CBS's core tables when they are relevant
 
     _bm25: BM25Okapi = PrivateAttr()
     _by_id: dict[str, Document] = PrivateAttr()
@@ -86,6 +87,12 @@ class HybridCatalogRetriever(BaseRetriever):
         rankings: list[list[str]] = []
         for q in queries:
             rankings += [self.vector_ranking(q), self.keyword_ranking(q)]
+        if self.boost_high_value:
+            # An extra ranking with only the High Value Datasets among the results: core tables
+            # (e.g. "Bevolking op 1 januari") get a small bonus over niche tables that happen
+            # to share a word with the question. Tables that were not found get no bonus.
+            found = reciprocal_rank_fusion(rankings, k=self.rrf_k)
+            rankings.append([i for i, _ in found if self._by_id[i].metadata.get("high_value")])
         fused = reciprocal_rank_fusion(rankings, k=self.rrf_k)[: self.k]
 
         vector, keyword = rankings[0], rankings[1]  # ranks for the original question

@@ -66,3 +66,22 @@ def test_rewriter_queries_are_fused_into_results(retriever: HybridCatalogRetriev
     results = retriever.invoke("baan")
     assert results[0].metadata["table_id"] == "B"
     assert results[0].metadata["search_queries"] == ["baan", "werkzame personen zorg"]
+
+
+def test_high_value_tables_get_a_bonus() -> None:
+    niche = "Bevolking bevolking per regio"
+    core = "Bevolking op 1 januari en gemiddeld; geslacht, leeftijd en regio"
+    docs = [
+        Document(id="NICHE", page_content=niche, metadata={"table_id": "NICHE"}),
+        Document(id="CORE", page_content=core, metadata={"table_id": "CORE", "high_value": True}),
+    ]
+    index = CatalogIndex.build(docs, DeterministicFakeEmbedding(size=32))
+    boosted = HybridCatalogRetriever(index=index, k=2, candidates=2)
+    plain = HybridCatalogRetriever(index=index, k=2, candidates=2, boost_high_value=False)
+
+    def core_score(retriever: HybridCatalogRetriever) -> float:
+        docs = retriever.invoke("bevolking")
+        return float(next(d.metadata["score"] for d in docs if d.id == "CORE"))
+
+    assert boosted.invoke("bevolking")[0].id == "CORE"
+    assert core_score(boosted) > core_score(plain)

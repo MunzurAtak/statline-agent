@@ -1,6 +1,6 @@
 {
   "cases": 20,
-  "index_size": 1291,
+  "index_size": 1294,
   "reports": [
     {
       "method": "vector",
@@ -16,15 +16,15 @@
     },
     {
       "method": "hybrid",
-      "hit@1": 0.45,
-      "hit@5": 0.55,
-      "mrr": 0.506
+      "hit@1": 0.4,
+      "hit@5": 0.5,
+      "mrr": 0.457
     },
     {
       "method": "hybrid+rewrite",
       "hit@1": 0.5,
-      "hit@5": 0.7,
-      "mrr": 0.582
+      "hit@5": 0.75,
+      "mrr": 0.603
     }
   ]
 }

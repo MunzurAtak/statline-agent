@@ -9,6 +9,8 @@ from statline_agent.catalog.enrichment import TableMetadata
 from statline_agent.cbs import DatasetInfo
 
 MAX_DESCRIPTION_CHARS = 300
+# The EU's High Value Datasets: CBS's core tables (population, labour, prices, ...).
+HIGH_VALUE_MARKER = "High Value Dataset"
 _HTML_TAG = re.compile(r"<[^>]+>")
 _WHITESPACE = re.compile(r"\s+")
 
@@ -47,5 +49,6 @@ def dataset_to_document(dataset: DatasetInfo, metadata: TableMetadata | None = N
             "observation_count": dataset.observation_count,
             "measures": metadata.measures if metadata else [],
             "dimensions": metadata.dimensions if metadata else [],
+            "high_value": bool(metadata and HIGH_VALUE_MARKER in metadata.summary),
         },
     )

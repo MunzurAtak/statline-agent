@@ -51,6 +51,7 @@ def understand_question(state: AgentState, runtime: Runtime[AgentContext]) -> Ag
     update: AgentState = {
         "messages": [HumanMessage(message)],
         "intent": "new_question",
+        "question": message,
         "search_queries": [],
         "plan_notes": [],
         "sql": "",

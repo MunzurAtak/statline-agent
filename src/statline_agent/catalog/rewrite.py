@@ -27,6 +27,8 @@ Richtlijnen:
 - Gebruik formele, statistische termen, bijvoorbeeld "levendgeborenen" in plaats van \
 "baby's", "echtscheidingen" in plaats van "uit elkaar gaan", "werkzame beroepsbevolking" \
 in plaats van "mensen met een baan".
+- Beschrijf alleen wát er gemeten wordt. Laat de indeling weg, zoals "per gemeente", \
+"per regio", "per jaar" of "naar leeftijd": die zit in de tabel zelf.
 - Laat plaatsnamen, jaartallen en vraagwoorden weg; die staan niet in tabeltitels.
 - Elke zoekopdracht beschrijft zelfstandig het onderwerp; dus niet alleen "gemeente" of \
 "regio".

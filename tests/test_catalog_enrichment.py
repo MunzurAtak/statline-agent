@@ -38,3 +38,10 @@ def test_document_text_has_summary_and_metadata_has_measures() -> None:
     assert doc.page_content == "Kerncijfers\nKerncijfers per regio\nLang verhaal"
     assert doc.metadata["measures"] == ["Totale bevolking"]
     assert doc.metadata["dimensions"] == ["Regio's"]
+    assert doc.metadata["high_value"] is False
+
+
+def test_high_value_datasets_are_flagged() -> None:
+    dataset = DatasetInfo(identifier="T1", title="Bevolking", description="")
+    meta = TableMetadata("T1", "Bevolking per regio. High Value Dataset - Statistiek")
+    assert dataset_to_document(dataset, meta).metadata["high_value"] is True
