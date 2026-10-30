@@ -1,12 +1,13 @@
 """Assembles the nodes into a LangGraph StateGraph.
 
-search_tables -> select_table -> plan_query -> fetch_data -> write_sql <-> run_sql
-                      |                            |                          |
-                      +-------- (no table) ------- + ------ (error) --------- +--> compose_answer
+understand_question -> search_tables -> select_table -> plan_query -> fetch_data
+        |  (follow-up: same table) ------------------------^              |
+        |  (off-topic) ------------------------------------> compose_answer <- write_sql <-> run_sql
 """
 
 from typing import Literal
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
@@ -18,12 +19,23 @@ from statline_agent.agent.nodes import (
     run_sql,
     search_tables,
     select_table,
+    understand_question,
     write_sql,
 )
 from statline_agent.agent.nodes.data import MAX_SQL_ATTEMPTS
 from statline_agent.agent.state import AgentState
 
 # The Literal return types tell LangGraph which edges exist (used when drawing the graph).
+
+
+def route_by_intent(
+    state: AgentState,
+) -> Literal["search_tables", "plan_query", "compose_answer"]:
+    """Follow-ups reuse the current table (no search needed); off-topic gets a direct answer."""
+    intent = state.get("intent", "new_question")
+    if intent == "off_topic":
+        return "compose_answer"
+    return "plan_query" if intent == "follow_up" else "search_tables"
 
 
 def route_after_selection(state: AgentState) -> Literal["plan_query", "compose_answer"]:
@@ -42,8 +54,12 @@ def route_after_sql(state: AgentState) -> Literal["write_sql", "compose_answer"]
     return "compose_answer"
 
 
-def build_graph() -> CompiledStateGraph[AgentState, AgentContext, AgentState, AgentState]:
+def build_graph(
+    checkpointer: BaseCheckpointSaver[str] | None = None,
+) -> CompiledStateGraph[AgentState, AgentContext, AgentState, AgentState]:
+    """Without a checkpointer every call is independent; with one, state is kept per thread_id."""
     graph = StateGraph(AgentState, context_schema=AgentContext)
+    graph.add_node("understand_question", understand_question)
     graph.add_node("search_tables", search_tables)
     graph.add_node("select_table", select_table)
     graph.add_node("plan_query", plan_query)
@@ -52,7 +68,8 @@ def build_graph() -> CompiledStateGraph[AgentState, AgentContext, AgentState, Ag
     graph.add_node("run_sql", run_sql)
     graph.add_node("compose_answer", compose_answer)
 
-    graph.add_edge(START, "search_tables")
+    graph.add_edge(START, "understand_question")
+    graph.add_conditional_edges("understand_question", route_by_intent)
     graph.add_edge("search_tables", "select_table")
     graph.add_conditional_edges("select_table", route_after_selection)
     graph.add_edge("plan_query", "fetch_data")
@@ -60,4 +77,4 @@ def build_graph() -> CompiledStateGraph[AgentState, AgentContext, AgentState, Ag
     graph.add_edge("write_sql", "run_sql")
     graph.add_conditional_edges("run_sql", route_after_sql)
     graph.add_edge("compose_answer", END)
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)

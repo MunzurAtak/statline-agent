@@ -77,7 +77,7 @@ def test_gives_up_after_max_attempts(context: AgentContext) -> None:
     state = run(context, *[BAD_SQL] * MAX_SQL_ATTEMPTS)
     assert state["attempts"] == MAX_SQL_ATTEMPTS
     assert state["sql_error"]
-    assert "result_rows" not in state
+    assert not state["result_rows"]
 
 
 def test_empty_result_counts_as_error(context: AgentContext) -> None:

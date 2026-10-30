@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
@@ -12,6 +13,10 @@ from statline_agent.charts import ChartSpec
 from statline_agent.llm import with_structured_output
 
 MAX_ROWS_IN_PROMPT = 50
+OFF_TOPIC_ANSWER = (
+    "Ik beantwoord vragen met cijfers van het CBS, bijvoorbeeld over bevolking, wonen, werk, "
+    "inkomen of zorg in Nederland. Waar wil je iets over weten?"
+)
 STATLINE_URL = "https://dataportal.cbs.nl/detail/CBS/{table_id}"
 
 ANSWER_SYSTEM_PROMPT = """\
@@ -60,6 +65,8 @@ def format_result(columns: list[str], rows: list[dict[str, Any]]) -> str:
 
 def failure_message(state: AgentState) -> str | None:
     """Fixed texts for the cases where there is no result to talk about (no LLM call needed)."""
+    if state.get("intent") == "off_topic":
+        return OFF_TOPIC_ANSWER
     if not state.get("table_id"):
         reason = state.get("selection_reason", "")
         return f"Ik heb geen CBS-tabel gevonden die deze vraag kan beantwoorden. {reason}".strip()
@@ -87,7 +94,12 @@ def compose_answer(state: AgentState, runtime: Runtime[AgentContext]) -> AgentSt
 
     failure = failure_message(state)
     if failure:
-        return {"answer": failure, "chart": None, "source": source}
+        return {
+            "answer": failure,
+            "chart": None,
+            "source": source,
+            "messages": [AIMessage(failure)],
+        }
 
     columns, rows = state["result_columns"], state["result_rows"]
     chain = ANSWER_PROMPT | with_structured_output(runtime.context.llm, Answer)
@@ -103,4 +115,9 @@ def compose_answer(state: AgentState, runtime: Runtime[AgentContext]) -> AgentSt
     )
     # Only keep the chart if it refers to columns that really exist in the result.
     chart = answer.chart if answer.chart.is_valid_for(columns) else None
-    return {"answer": answer.text, "chart": chart, "source": source}
+    return {
+        "answer": answer.text,
+        "chart": chart,
+        "source": source,
+        "messages": [AIMessage(answer.text)],
+    }

@@ -41,6 +41,7 @@ config:
 ---
 graph TD;
 	__start__([<p>__start__</p>]):::first
+	understand_question(understand_question)
 	search_tables(search_tables)
 	select_table(select_table)
 	plan_query(plan_query)
@@ -49,7 +50,7 @@ graph TD;
 	run_sql(run_sql)
 	compose_answer(compose_answer)
 	__end__([<p>__end__</p>]):::last
-	__start__ --> search_tables;
+	__start__ --> understand_question;
 	fetch_data -.-> compose_answer;
 	fetch_data -.-> write_sql;
 	plan_query --> fetch_data;
@@ -58,6 +59,9 @@ graph TD;
 	search_tables --> select_table;
 	select_table -.-> compose_answer;
 	select_table -.-> plan_query;
+	understand_question -.-> compose_answer;
+	understand_question -.-> plan_query;
+	understand_question -.-> search_tables;
 	write_sql --> run_sql;
 	compose_answer --> __end__;
 	classDef default fill:#f2f0ff,line-height:1.2

@@ -1,13 +1,16 @@
 """The state that flows through the LangGraph agent."""
 
-from typing import Any, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 
 from langchain_core.documents import Document
+from langchain_core.messages import AnyMessage
+from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
 from statline_agent.charts import ChartSpec
 
 MAX_DESCRIPTION_CHARS = 200
+Intent = Literal["new_question", "follow_up", "off_topic"]
 
 
 class Candidate(BaseModel):
@@ -44,7 +47,10 @@ class Source(BaseModel):
 class AgentState(TypedDict, total=False):
     """total=False: every node returns only the keys it changes."""
 
-    question: str
+    # add_messages appends instead of overwriting: this is the conversation history.
+    messages: Annotated[list[AnyMessage], add_messages]
+    intent: Intent
+    question: str  # the input; replaced by a standalone version for follow-up questions
     search_queries: list[str]
     candidates: list[Candidate]
     table_id: str | None

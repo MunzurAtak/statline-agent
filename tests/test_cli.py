@@ -61,3 +61,8 @@ def test_save_chart_writes_html(tmp_path: Path) -> None:
     html = path.read_text(encoding="utf-8")
     assert "<html>" in html and "plotly" in html
     assert save_chart({"chart": None}, tmp_path / "none.html") is None
+
+
+def test_format_understand_update() -> None:
+    lines = format_update("understand_question", {"intent": "follow_up", "question": "En Utrecht?"})
+    assert lines[1:] == ["  type: follow_up", "  vraag: En Utrecht?"]

@@ -1,19 +1,30 @@
 """Command line interface: ask a question and watch the agent work step by step.
 
-Usage: uv run statline-agent "Hoeveel inwoners heeft Rotterdam?"
+Usage:
+    uv run statline-agent "Hoeveel inwoners heeft Rotterdam?"   # one question
+    uv run statline-agent                                       # chat with follow-ups
 """
 
 import argparse
 import textwrap
+import uuid
 import webbrowser
 from collections.abc import Callable
 from pathlib import Path
 
-from statline_agent.agent import AgentState, build_graph, create_context
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph.state import CompiledStateGraph
+
+from statline_agent.agent import AgentContext, AgentState, build_graph, create_context
+from statline_agent.agent.memory import memory_checkpointer
 from statline_agent.charts import build_figure
 
 MAX_ROWS_SHOWN = 10
 DEFAULT_CHART_PATH = Path(".cache/charts/answer.html")
+
+
+def _understand(update: AgentState) -> list[str]:
+    return [f"  type: {update.get('intent')}", f"  vraag: {update.get('question', '')}"]
 
 
 def _search(update: AgentState) -> list[str]:
@@ -65,6 +76,7 @@ def _answer(update: AgentState) -> list[str]:
 
 
 FORMATTERS: dict[str, Callable[[AgentState], list[str]]] = {
+    "understand_question": _understand,
     "search_tables": _search,
     "select_table": _select,
     "plan_query": _plan,
@@ -94,27 +106,47 @@ def save_chart(state: AgentState, path: Path) -> Path | None:
     return path
 
 
+Graph = CompiledStateGraph[AgentState, AgentContext, AgentState, AgentState]
+
+
+def ask(graph: Graph, context: AgentContext, config: RunnableConfig, question: str) -> AgentState:
+    """Run one turn, printing every node update; returns the merged updates of this turn."""
+    state: AgentState = {}
+    # stream_mode="updates" yields {node_name: partial_state} after every node
+    stream = graph.stream({"question": question}, config, context=context, stream_mode="updates")
+    for chunk in stream:
+        for node, update in chunk.items():
+            print("\n".join(format_update(node, update)))
+            state.update(update)
+    return state
+
+
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Ask a question about CBS open data.")
-    parser.add_argument("question", help="Your question, e.g. 'Hoeveel inwoners heeft Rotterdam?'")
+    parser = argparse.ArgumentParser(description="Ask questions about CBS open data.")
+    parser.add_argument("question", nargs="?", help="Leave out to start a chat with follow-ups")
     parser.add_argument("--chart", type=Path, default=DEFAULT_CHART_PATH, help="HTML output path")
     parser.add_argument("--open", action="store_true", help="Open the chart in your browser")
     args = parser.parse_args(argv)
 
-    graph = build_graph()
+    graph = build_graph(checkpointer=memory_checkpointer())
     context = create_context()
-    state: AgentState = {}
-    # stream_mode="updates" yields {node_name: partial_state} after every node
-    for chunk in graph.stream({"question": args.question}, context=context, stream_mode="updates"):
-        for node, update in chunk.items():
-            print("\n".join(format_update(node, update)))
-            state.update(update)
+    # One thread = one conversation: the checkpointer keeps the state between turns.
+    config: RunnableConfig = {"configurable": {"thread_id": str(uuid.uuid4())}}
 
-    chart_path = save_chart(state, args.chart)
-    if chart_path:
-        print(f"Grafiek opgeslagen in {chart_path}")
-        if args.open:
-            webbrowser.open(chart_path.resolve().as_uri())
+    def turn(question: str) -> None:
+        state = ask(graph, context, config, question)
+        chart_path = save_chart(state, args.chart)
+        if chart_path:
+            print(f"Grafiek opgeslagen in {chart_path}")
+            if args.open:
+                webbrowser.open(chart_path.resolve().as_uri())
+
+    if args.question:
+        turn(args.question)
+        return
+    print("Chat met de agent; stel gerust vervolgvragen. Laat de vraag leeg om te stoppen.")
+    while question := input("\nVraag: ").strip():
+        turn(question)
 
 
 if __name__ == "__main__":

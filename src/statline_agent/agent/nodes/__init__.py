@@ -4,6 +4,7 @@ from statline_agent.agent.nodes.answer import compose_answer
 from statline_agent.agent.nodes.data import fetch_data, run_sql, write_sql
 from statline_agent.agent.nodes.plan import plan_query
 from statline_agent.agent.nodes.search import search_tables, select_table
+from statline_agent.agent.nodes.understand import understand_question
 
 __all__ = [
     "compose_answer",
@@ -12,5 +13,6 @@ __all__ = [
     "run_sql",
     "search_tables",
     "select_table",
+    "understand_question",
     "write_sql",
 ]
