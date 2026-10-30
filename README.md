@@ -44,6 +44,7 @@ graph TD;
 	understand_question(understand_question)
 	search_tables(search_tables)
 	select_table(select_table)
+	confirm_table(confirm_table)
 	plan_query(plan_query)
 	fetch_data(fetch_data)
 	write_sql(write_sql)
@@ -51,6 +52,8 @@ graph TD;
 	compose_answer(compose_answer)
 	__end__([<p>__end__</p>]):::last
 	__start__ --> understand_question;
+	confirm_table -.-> compose_answer;
+	confirm_table -.-> plan_query;
 	fetch_data -.-> compose_answer;
 	fetch_data -.-> write_sql;
 	plan_query --> fetch_data;
@@ -58,7 +61,7 @@ graph TD;
 	run_sql -.-> write_sql;
 	search_tables --> select_table;
 	select_table -.-> compose_answer;
-	select_table -.-> plan_query;
+	select_table -.-> confirm_table;
 	understand_question -.-> compose_answer;
 	understand_question -.-> plan_query;
 	understand_question -.-> search_tables;

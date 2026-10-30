@@ -3,7 +3,7 @@ from pathlib import Path
 from statline_agent.agent import AgentState, Candidate
 from statline_agent.agent.state import Source
 from statline_agent.charts import ChartSpec
-from statline_agent.cli import format_update, save_chart
+from statline_agent.cli import choose_table, format_update, save_chart
 
 
 def test_format_search_update_lists_candidates() -> None:
@@ -66,3 +66,16 @@ def test_save_chart_writes_html(tmp_path: Path) -> None:
 def test_format_understand_update() -> None:
     lines = format_update("understand_question", {"intent": "follow_up", "question": "En Utrecht?"})
     assert lines[1:] == ["  type: follow_up", "  vraag: En Utrecht?"]
+
+
+REQUEST = {
+    "proposed": {"table_id": "A", "title": "Voorstel", "reason": "r"},
+    "alternatives": [{"table_id": "B", "title": "Alternatief"}],
+}
+
+
+def test_choose_table_maps_input_to_table_ids() -> None:
+    assert choose_table(REQUEST, read=lambda _: "") == ""  # Enter: accept the proposal
+    assert choose_table(REQUEST, read=lambda _: "2") == "B"
+    assert choose_table(REQUEST, read=lambda _: "0") == "NONE"
+    assert choose_table(REQUEST, read=lambda _: "9") == ""  # invalid: keep the proposal

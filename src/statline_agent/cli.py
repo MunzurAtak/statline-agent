@@ -10,10 +10,13 @@ import textwrap
 import uuid
 import webbrowser
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Command
 
 from statline_agent.agent import AgentContext, AgentState, build_graph, create_context
 from statline_agent.agent.memory import memory_checkpointer
@@ -111,15 +114,42 @@ def save_chart(state: AgentState, path: Path) -> Path | None:
 Graph = CompiledStateGraph[AgentState, AgentContext, AgentState, AgentState]
 
 
+def choose_table(request: dict[str, Any], read: Callable[[str], str] = input) -> str:
+    """Show the proposed table and alternatives; return the chosen id ("" = accept proposal)."""
+    proposed = request["proposed"]
+    options = [proposed, *request["alternatives"]]
+    print("\nVoorgestelde tabel en alternatieven:")
+    for number, option in enumerate(options, start=1):
+        marker = "  <- voorstel" if number == 1 else ""
+        print(f"  {number}. {option['table_id']:10} {option['title']}{marker}")
+    print("  0. Geen van deze")
+    answer = read("Kies een nummer (Enter = voorstel): ").strip()
+    if answer == "0":
+        return "NONE"
+    if answer.isdigit() and 1 <= int(answer) <= len(options):
+        return str(options[int(answer) - 1]["table_id"])
+    return ""
+
+
 def ask(graph: Graph, context: AgentContext, config: RunnableConfig, question: str) -> AgentState:
-    """Run one turn, printing every node update; returns the merged updates of this turn."""
+    """Run one turn, printing every node update; returns the merged updates of this turn.
+
+    When the graph pauses for confirmation (an interrupt), ask the user and resume it.
+    """
     state: AgentState = {}
-    # stream_mode="updates" yields {node_name: partial_state} after every node
-    stream = graph.stream({"question": question}, config, context=context, stream_mode="updates")
-    for chunk in stream:
-        for node, update in chunk.items():
-            print("\n".join(format_update(node, update)))
-            state.update(update)
+    payload: Any = {"question": question}
+    while payload is not None:
+        request = None
+        # stream_mode="updates" yields {node_name: partial_state} after every node
+        stream = graph.stream(payload, config, context=context, stream_mode="updates")
+        for chunk in stream:
+            for node, update in chunk.items():
+                if node == "__interrupt__":
+                    request = update[0].value
+                    continue
+                print("\n".join(format_update(node, update)))
+                state.update(update)
+        payload = Command(resume=choose_table(request)) if request else None
     return state
 
 
@@ -128,10 +158,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("question", nargs="?", help="Leave out to start a chat with follow-ups")
     parser.add_argument("--chart", type=Path, default=DEFAULT_CHART_PATH, help="HTML output path")
     parser.add_argument("--open", action="store_true", help="Open the chart in your browser")
+    parser.add_argument("--auto", action="store_true", help="Do not ask to confirm the table")
     args = parser.parse_args(argv)
 
     graph = build_graph(checkpointer=memory_checkpointer())
-    context = create_context()
+    context = replace(create_context(), confirm_tables=not args.auto)
     # One thread = one conversation: the checkpointer keeps the state between turns.
     config: RunnableConfig = {"configurable": {"thread_id": str(uuid.uuid4())}}
 

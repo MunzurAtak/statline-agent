@@ -1,8 +1,8 @@
 """Assembles the nodes into a LangGraph StateGraph.
 
-understand_question -> search_tables -> select_table -> plan_query -> fetch_data
-        |  (follow-up: same table) ------------------------^              |
-        |  (off-topic) ------------------------------------> compose_answer <- write_sql <-> run_sql
+understand_question -> search_tables -> select_table -> confirm_table -> plan_query -> fetch_data
+        |  (follow-up: same table) ----------------------------------------^             |
+        |  (off-topic) ----------------------------> compose_answer <- write_sql <-> run_sql
 """
 
 from typing import Literal
@@ -14,6 +14,7 @@ from langgraph.graph.state import CompiledStateGraph
 from statline_agent.agent.context import AgentContext
 from statline_agent.agent.nodes import (
     compose_answer,
+    confirm_table,
     fetch_data,
     plan_query,
     run_sql,
@@ -38,8 +39,13 @@ def route_by_intent(
     return "plan_query" if intent == "follow_up" else "search_tables"
 
 
-def route_after_selection(state: AgentState) -> Literal["plan_query", "compose_answer"]:
+def route_after_selection(state: AgentState) -> Literal["confirm_table", "compose_answer"]:
     """No suitable table: go straight to the answer, which explains that."""
+    return "confirm_table" if state.get("table_id") else "compose_answer"
+
+
+def route_after_confirmation(state: AgentState) -> Literal["plan_query", "compose_answer"]:
+    """The user may have rejected all tables."""
     return "plan_query" if state.get("table_id") else "compose_answer"
 
 
@@ -62,6 +68,7 @@ def build_graph(
     graph.add_node("understand_question", understand_question)
     graph.add_node("search_tables", search_tables)
     graph.add_node("select_table", select_table)
+    graph.add_node("confirm_table", confirm_table)
     graph.add_node("plan_query", plan_query)
     graph.add_node("fetch_data", fetch_data)
     graph.add_node("write_sql", write_sql)
@@ -72,6 +79,7 @@ def build_graph(
     graph.add_conditional_edges("understand_question", route_by_intent)
     graph.add_edge("search_tables", "select_table")
     graph.add_conditional_edges("select_table", route_after_selection)
+    graph.add_conditional_edges("confirm_table", route_after_confirmation)
     graph.add_edge("plan_query", "fetch_data")
     graph.add_conditional_edges("fetch_data", route_after_fetch)
     graph.add_edge("write_sql", "run_sql")

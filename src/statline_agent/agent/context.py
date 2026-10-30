@@ -30,6 +30,7 @@ class AgentContext:
     cbs: CBSClient
     embeddings: Embeddings
     store: DataStore
+    confirm_tables: bool = False  # human-in-the-loop: ask the user to confirm the table
 
 
 def create_context(settings: Settings | None = None) -> AgentContext:
