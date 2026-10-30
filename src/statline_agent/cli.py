@@ -12,7 +12,7 @@ import webbrowser
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
@@ -40,6 +40,13 @@ def _select(update: AgentState) -> list[str]:
     table = update.get("table_id") or "geen geschikte tabel"
     title = update.get("table_title", "")
     return [f"  gekozen: {table} {title}".rstrip(), f"  reden: {update.get('selection_reason')}"]
+
+
+def _confirm(update: AgentState) -> list[str]:
+    if not update:
+        return ["  voorstel bevestigd"]
+    table = update.get("table_id") or "geen tabel"
+    return [f"  gekozen door gebruiker: {table} {update.get('table_title', '')}".rstrip()]
 
 
 def _plan(update: AgentState) -> list[str]:
@@ -84,6 +91,7 @@ FORMATTERS: dict[str, Callable[[AgentState], list[str]]] = {
     "understand_question": _understand,
     "search_tables": _search,
     "select_table": _select,
+    "confirm_table": _confirm,
     "plan_query": _plan,
     "fetch_data": _fetch,
     "write_sql": _write_sql,
@@ -143,10 +151,11 @@ def ask(graph: Graph, context: AgentContext, config: RunnableConfig, question: s
         # stream_mode="updates" yields {node_name: partial_state} after every node
         stream = graph.stream(payload, config, context=context, stream_mode="updates")
         for chunk in stream:
-            for node, update in chunk.items():
+            for node, raw_update in chunk.items():
                 if node == "__interrupt__":
-                    request = update[0].value
+                    request = raw_update[0].value
                     continue
+                update = cast(AgentState, raw_update or {})  # nodes without changes stream None
                 print("\n".join(format_update(node, update)))
                 state.update(update)
         payload = Command(resume=choose_table(request)) if request else None

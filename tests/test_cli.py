@@ -1,9 +1,12 @@
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from statline_agent.agent import AgentState, Candidate
 from statline_agent.agent.state import Source
 from statline_agent.charts import ChartSpec
-from statline_agent.cli import choose_table, format_update, save_chart
+from statline_agent.cli import ask, choose_table, format_update, save_chart
 
 
 def test_format_search_update_lists_candidates() -> None:
@@ -79,3 +82,16 @@ def test_choose_table_maps_input_to_table_ids() -> None:
     assert choose_table(REQUEST, read=lambda _: "2") == "B"
     assert choose_table(REQUEST, read=lambda _: "0") == "NONE"
     assert choose_table(REQUEST, read=lambda _: "9") == ""  # invalid: keep the proposal
+
+
+class FakeGraph:
+    """Streams fixed updates, including a node that returns no update (None)."""
+
+    def stream(self, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        return [{"confirm_table": None}, {"compose_answer": {"answer": "Klaar."}}]
+
+
+def test_ask_handles_nodes_without_updates(capsys: pytest.CaptureFixture[str]) -> None:
+    state = ask(FakeGraph(), None, {}, "vraag")  # type: ignore[arg-type]
+    assert state == {"answer": "Klaar."}
+    assert "voorstel bevestigd" in capsys.readouterr().out
