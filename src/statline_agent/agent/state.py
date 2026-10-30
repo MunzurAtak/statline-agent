@@ -57,6 +57,7 @@ class AgentState(TypedDict, total=False):
     table_title: str
     selection_reason: str
     filters: dict[str, list[str]]  # OData filters: {"Measure": [...], "RegioS": [...], ...}
+    requested_filters: dict[str, list[str]]  # the LLM's request: {"Regio's": ["Utrecht"]}
     measure_titles: list[str]
     plan_notes: list[str]  # things the agent could not do exactly as asked
     data_table: str  # DuckDB table with the fetched observations

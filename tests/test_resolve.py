@@ -1,4 +1,9 @@
-from statline_agent.agent.resolve import default_code, resolve_names, select_periods
+from statline_agent.agent.resolve import (
+    add_qualifiers,
+    default_code,
+    resolve_names,
+    select_periods,
+)
 from statline_agent.cbs import DimensionCode
 
 
@@ -30,6 +35,12 @@ def test_ambiguous_name_prefers_municipality() -> None:
     regions = codes(("PV26", "Utrecht (PV)"), ("GM0344", "Utrecht (gemeente)"))
     assert resolve_names(["Utrecht"], regions)[0] == ["GM0344"]
     assert resolve_names(["Utrecht (PV)"], regions)[0] == ["PV26"]  # explicit still works
+
+
+def test_qualifier_selects_province_or_municipality() -> None:
+    regions = codes(("PV26", "Utrecht (PV)"), ("GM0344", "Utrecht (gemeente)"))
+    assert resolve_names(["provincie Utrecht"], regions)[0] == ["PV26"]
+    assert resolve_names(["Gemeente Utrecht"], regions)[0] == ["GM0344"]
 
 
 def test_exact_title_wins_over_prefix() -> None:
@@ -69,3 +80,12 @@ def test_select_periods_falls_back_to_available_frequency() -> None:
     yearly = codes(("2023JJ00", "2023"), ("2024JJ00", "2024"))
     assert select_periods(yearly, "maand", latest_only=True) == ["2024JJ00"]
     assert select_periods(yearly, "jaar", 2030, 0) == []
+
+
+def test_add_qualifiers_restores_what_the_llm_dropped() -> None:
+    question = "Hoeveel inwoners had de provincie Utrecht in 2025?"
+    assert add_qualifiers(["Utrecht", "Amersfoort"], question) == [
+        "provincie Utrecht",
+        "Amersfoort",
+    ]
+    assert add_qualifiers(["gemeente Utrecht"], question) == ["gemeente Utrecht"]  # already set

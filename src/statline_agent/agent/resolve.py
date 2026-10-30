@@ -21,6 +21,8 @@ ALIASES = {"den haag": "'s-gravenhage", "den bosch": "'s-hertogenbosch"}
 # "Utrecht" exists as "Utrecht (gemeente)" and "Utrecht (PV)": a plain name means the
 # municipality first, then the province, ... (by CBS region code prefix).
 REGION_PREFERENCE = ("GM", "PV", "CR", "LD")
+# "provincie Utrecht" / "gemeente Groningen": the qualifier decides which one is meant.
+QUALIFIERS = {"gemeente": "GM", "provincie": "PV", "corop": "CR", "landsdeel": "LD"}
 _SUFFIX = re.compile(r"\s*\([^)]*\)\s*$")
 
 
@@ -28,11 +30,36 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
-def _preference(code: DimensionCode) -> int:
+def _preference(code: DimensionCode, wanted: str | None = None) -> int:
     prefix = code.identifier[:2].upper()
+    if wanted:
+        return 0 if prefix == wanted else 1
     return (
         REGION_PREFERENCE.index(prefix) if prefix in REGION_PREFERENCE else len(REGION_PREFERENCE)
     )
+
+
+def _split_qualifier(key: str) -> tuple[str, str | None]:
+    """'provincie utrecht' -> ('utrecht', 'PV'); 'utrecht' -> ('utrecht', None)."""
+    word, _, rest = key.partition(" ")
+    if word in QUALIFIERS and rest:
+        return rest, QUALIFIERS[word]
+    return key, None
+
+
+def add_qualifiers(names: Sequence[str], question: str) -> list[str]:
+    """Restore a qualifier the LLM dropped: if the question says "de provincie Utrecht" but the
+    plan only says "Utrecht", return "provincie Utrecht". Deterministic, so it cannot be missed.
+    """
+    result = []
+    for name in names:
+        if _split_qualifier(_normalize(name))[1] is None:
+            words = "|".join(QUALIFIERS)
+            found = re.search(rf"\b({words})\s+{re.escape(name)}\b", question, re.IGNORECASE)
+            if found:
+                name = f"{found.group(1).lower()} {name}"
+        result.append(name)
+    return result
 
 
 def resolve_names(
@@ -51,11 +78,14 @@ def resolve_names(
     by_identifier = {c.identifier.lower(): c.identifier for c in codes}
     resolved: list[str] = []
     missing: list[str] = []
+    match: str | None
     for name in names:
-        key = _normalize(name)
+        key, wanted = _split_qualifier(_normalize(name))
         key = ALIASES.get(key, key)
-        if key in by_identifier:  # the LLM may also give a code directly
-            match: str | None = by_identifier[key]
+        if wanted and key in by_base:
+            match = min(by_base[key], key=lambda c: _preference(c, wanted)).identifier
+        elif key in by_identifier:  # the LLM may also give a code directly
+            match = by_identifier[key]
         elif key in by_title:
             match = by_title[key]
         elif key in by_base:

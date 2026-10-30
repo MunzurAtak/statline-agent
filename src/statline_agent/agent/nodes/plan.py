@@ -11,7 +11,12 @@ from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from statline_agent.agent.context import AgentContext
-from statline_agent.agent.resolve import default_code, resolve_names, select_periods
+from statline_agent.agent.resolve import (
+    add_qualifiers,
+    default_code,
+    resolve_names,
+    select_periods,
+)
 from statline_agent.agent.state import AgentState
 from statline_agent.cbs import Dimension, DimensionCode, Measure
 from statline_agent.llm import with_structured_output
@@ -59,7 +64,8 @@ beantwoorden.
 
 - Kies 1 tot 3 onderwerpen (gebruik de codes tussen haakjes).
 - Noem bij filters alleen indelingen die in de vraag voorkomen, met waarden in gewone taal \
-(bijvoorbeeld de naam van een gemeente). Niet-genoemde indelingen krijgen automatisch het totaal.
+(bijvoorbeeld de naam van een gemeente). Neem "provincie" of "gemeente" over als de vraag \
+dat noemt, bijvoorbeeld "provincie Utrecht". Niet-genoemde indelingen krijgen het totaal.
 - Vraagt de vraag naar een actuele stand ("hoeveel", zonder jaartal), zet latest_only op true.
 - Vraagt de vraag naar een ontwikkeling of een periode, vul year_from en/of year_to in."""
 
@@ -130,6 +136,7 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
         chosen = shortlist[:1]
         notes.append(f"Onbekende onderwerpen {plan.measures}; '{chosen[0].title}' gebruikt.")
     filters: dict[str, list[str]] = {"Measure": [m.identifier for m in chosen]}
+    requested: dict[str, list[str]] = {}  # what the LLM asked for, in plain language
 
     for dim in dimensions:
         dim_codes = codes[dim.identifier]
@@ -143,7 +150,10 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
             filters[dim.identifier] = periods
             continue
 
-        found, missing = resolve_names(_requested_values(plan, dim), dim_codes)
+        names = add_qualifiers(_requested_values(plan, dim), state["question"])
+        if names:
+            requested[dim.title] = names
+        found, missing = resolve_names(names, dim_codes)
         if missing:
             notes.append(f"Niet gevonden in {dim.title}: {', '.join(missing)}.")
         default = default_code(dim_codes)
@@ -154,6 +164,7 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
 
     return {
         "filters": filters,
+        "requested_filters": requested,
         "measure_titles": [m.title for m in chosen],
         "plan_notes": notes,
     }

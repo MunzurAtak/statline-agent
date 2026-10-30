@@ -41,6 +41,8 @@ def _select(update: AgentState) -> list[str]:
 
 def _plan(update: AgentState) -> list[str]:
     lines = [f"  onderwerpen: {update.get('measure_titles', [])}"]
+    requested = update.get("requested_filters", {}).items()
+    lines += [f"  gevraagd {key}: {names}" for key, names in requested]
     lines += [f"  filter {key}: {codes}" for key, codes in update.get("filters", {}).items()]
     lines += [f"  let op: {note}" for note in update.get("plan_notes", [])]
     return lines

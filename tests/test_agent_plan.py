@@ -62,6 +62,7 @@ def test_plan_resolves_names_and_period_range(context: AgentContext) -> None:
         "Perioden": ["2005JJ00", "2006JJ00", "2007JJ00", "2008JJ00", "2009JJ00"],
     }
     assert state["measure_titles"] == ["Totale bevolking"]
+    assert state["requested_filters"] == {"Regio's": ["Zuid-Holland"]}
     assert state["plan_notes"] == []
 
 
