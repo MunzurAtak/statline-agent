@@ -15,9 +15,13 @@ class MissingAPIKeyError(RuntimeError):
     """Raised when the selected provider needs an API key that is not configured."""
 
 
-def get_chat_model(settings: Settings | None = None) -> BaseChatModel:
-    """Build the chat model for the configured provider (Groq or Ollama)."""
+def get_chat_model(settings: Settings | None = None, model: str | None = None) -> BaseChatModel:
+    """Build the chat model for the configured provider (Groq or Ollama).
+
+    `model` overrides the configured model, e.g. for the evaluation judge.
+    """
     settings = settings or get_settings()
+    model_name = model or settings.llm_model
 
     if settings.llm_provider == "groq":
         if settings.groq_api_key is None:
@@ -25,14 +29,15 @@ def get_chat_model(settings: Settings | None = None) -> BaseChatModel:
                 "GROQ_API_KEY is not set. Copy .env.example to .env and add your key."
             )
         return init_chat_model(
-            settings.llm_model,
+            model_name,
             model_provider="groq",
             temperature=settings.llm_temperature,
             api_key=settings.groq_api_key.get_secret_value(),
+            max_retries=settings.llm_max_retries,
         )
 
     return init_chat_model(
-        settings.llm_model,
+        model_name,
         model_provider="ollama",
         temperature=settings.llm_temperature,
         base_url=settings.ollama_base_url,

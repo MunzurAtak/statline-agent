@@ -1,0 +1,110 @@
+[
+  {
+    "id": "inwoners-rotterdam",
+    "turns": ["Hoeveel inwoners heeft Rotterdam?"],
+    "expected_tables": ["03759ned", "37259ned", "70072ned"],
+    "references": [
+      {"table_id": "03759ned", "measure": "M000352", "filters": {"RegioS": ["GM0599"]}},
+      {"table_id": "37259ned", "measure": "M000352", "filters": {"RegioS": ["GM0599"]}},
+      {"table_id": "70072ned", "measure": "M000352_3", "filters": {"RegioS": ["GM0599"]}}
+    ]
+  },
+  {
+    "id": "inwoners-gemeente-utrecht",
+    "turns": ["Hoeveel inwoners heeft de gemeente Utrecht?"],
+    "expected_tables": ["03759ned", "37259ned", "70072ned"],
+    "references": [
+      {"table_id": "03759ned", "measure": "M000352", "filters": {"RegioS": ["GM0344"]}},
+      {"table_id": "37259ned", "measure": "M000352", "filters": {"RegioS": ["GM0344"]}},
+      {"table_id": "70072ned", "measure": "M000352_3", "filters": {"RegioS": ["GM0344"]}}
+    ]
+  },
+  {
+    "id": "inwoners-provincie-utrecht",
+    "turns": ["Hoeveel inwoners heeft de provincie Utrecht?"],
+    "expected_tables": ["03759ned", "37259ned", "70072ned"],
+    "references": [
+      {"table_id": "03759ned", "measure": "M000352", "filters": {"RegioS": ["PV26"]}},
+      {"table_id": "37259ned", "measure": "M000352", "filters": {"RegioS": ["PV26"]}},
+      {"table_id": "70072ned", "measure": "M000352_3", "filters": {"RegioS": ["PV26"]}}
+    ]
+  },
+  {
+    "id": "vervolgvraag-amsterdam",
+    "turns": ["Hoeveel inwoners heeft Rotterdam?", "En Amsterdam?"],
+    "expected_tables": ["03759ned", "37259ned", "70072ned"],
+    "references": [
+      {"table_id": "03759ned", "measure": "M000352", "filters": {"RegioS": ["GM0363"]}},
+      {"table_id": "37259ned", "measure": "M000352", "filters": {"RegioS": ["GM0363"]}},
+      {"table_id": "70072ned", "measure": "M000352_3", "filters": {"RegioS": ["GM0363"]}}
+    ]
+  },
+  {
+    "id": "vervolgvraag-provincie",
+    "turns": ["Hoeveel inwoners heeft Utrecht?", "En de provincie?"],
+    "expected_tables": ["03759ned", "37259ned", "70072ned"],
+    "references": [
+      {"table_id": "03759ned", "measure": "M000352", "filters": {"RegioS": ["PV26"]}},
+      {"table_id": "37259ned", "measure": "M000352", "filters": {"RegioS": ["PV26"]}},
+      {"table_id": "70072ned", "measure": "M000352_3", "filters": {"RegioS": ["PV26"]}}
+    ]
+  },
+  {
+    "id": "groei-amsterdam",
+    "turns": ["Met hoeveel procent is de bevolking van Amsterdam tussen 2015 en 2025 gegroeid?"],
+    "expected_tables": ["03759ned", "37259ned", "70072ned"],
+    "references": [
+      {"table_id": "03759ned", "measure": "M000352", "filters": {"RegioS": ["GM0363"]},
+       "kind": "change_pct", "start_year": 2015, "end_year": 2025}
+    ]
+  },
+  {
+    "id": "inwoners-nederland",
+    "turns": ["Hoeveel inwoners heeft Nederland?"],
+    "expected_tables": ["03759ned", "37259ned", "70072ned", "85496NED", "83474NED"],
+    "references": [
+      {"table_id": "03759ned", "measure": "M000352", "filters": {"RegioS": ["NL01"]}},
+      {"table_id": "37259ned", "measure": "M000352", "filters": {"RegioS": ["NL01"]}}
+    ]
+  },
+  {
+    "id": "woz-den-haag",
+    "turns": ["Wat is de gemiddelde WOZ-waarde van woningen in Den Haag?"],
+    "expected_tables": ["85036NED", "70072ned"],
+    "references": [
+      {"table_id": "85036NED", "measure": "M003039", "filters": {"RegioS": ["GM0518"]}}
+    ]
+  },
+  {
+    "id": "woz-den-haag-groei",
+    "turns": ["Met hoeveel procent is de gemiddelde WOZ-waarde in Den Haag gestegen sinds 2020?"],
+    "expected_tables": ["85036NED", "70072ned"],
+    "references": [
+      {"table_id": "85036NED", "measure": "M003039", "filters": {"RegioS": ["GM0518"]},
+       "kind": "change_pct", "start_year": 2020}
+    ]
+  },
+  {
+    "id": "woz-rotterdam-2020",
+    "turns": ["Wat was de gemiddelde WOZ-waarde in Rotterdam in 2020?"],
+    "expected_tables": ["85036NED", "70072ned"],
+    "references": [
+      {"table_id": "85036NED", "measure": "M003039", "filters": {"RegioS": ["GM0599"]},
+       "kind": "year", "year": 2020}
+    ]
+  },
+  {
+    "id": "faillissementen-2024",
+    "turns": ["Hoeveel faillissementen werden er in 2024 uitgesproken?"],
+    "expected_tables": ["82242NED", "82522NED", "82244NED", "83085NED"],
+    "references": [
+      {"table_id": "82242NED", "measure": "Uitgesproken faillissementen", "kind": "year", "year": 2024}
+    ]
+  },
+  {
+    "id": "off-topic",
+    "turns": ["Wie wint het WK voetbal?"],
+    "expected_tables": [],
+    "references": []
+  }
+]

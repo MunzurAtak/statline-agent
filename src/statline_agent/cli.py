@@ -173,7 +173,14 @@ def main(argv: list[str] | None = None) -> None:
     graph = build_graph(checkpointer=memory_checkpointer())
     context = replace(create_context(), confirm_tables=not args.auto)
     # One thread = one conversation: the checkpointer keeps the state between turns.
-    config: RunnableConfig = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    thread_id = str(uuid.uuid4())
+    config: RunnableConfig = {
+        "configurable": {"thread_id": thread_id},
+        # Shown in LangSmith (if tracing is on): filter traces by interface or conversation.
+        "run_name": "statline-agent",
+        "tags": ["cli"],
+        "metadata": {"thread_id": thread_id},
+    }
 
     def turn(question: str) -> None:
         state = ask(graph, context, config, question)

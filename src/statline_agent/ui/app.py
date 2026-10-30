@@ -92,7 +92,13 @@ def stream(payload: Any, state: AgentState, steps: list[str]) -> dict[str, Any] 
     """
     graph, context = load_agent()
     context = replace(context, confirm_tables=st.session_state.get("confirm", False))
-    config: RunnableConfig = {"configurable": {"thread_id": st.session_state.thread_id}}
+    thread_id = st.session_state.thread_id
+    config: RunnableConfig = {
+        "configurable": {"thread_id": thread_id},
+        "run_name": "statline-agent",
+        "tags": ["streamlit"],
+        "metadata": {"thread_id": thread_id},
+    }
     request = None
     with st.status("Bezig...", expanded=False) as status:
         for chunk in graph.stream(payload, config, context=context, stream_mode="updates"):
