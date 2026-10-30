@@ -28,10 +28,14 @@ def describe_step(node: str, update: AgentState) -> str:
     label = STEP_LABELS.get(node, node)
     if node == "search_tables":
         return f"{label}: {len(update.get('candidates', []))} kandidaten"
-    if node in ("select_table", "confirm_table") and update.get("table_id"):
+    if node == "select_table" and update.get("table_id"):
         return f"{label}: {update['table_id']} {update.get('table_title', '')}"
     if node == "fetch_data" and update.get("data_overview"):
         return f"{label}: {update['data_overview'].splitlines()[0]}"
+    if node == "confirm_table":
+        if update.get("table_id"):
+            return f"{label}: gekozen door gebruiker"
+        return f"{label}: voorstel bevestigd"
     if node == "run_sql":
         if update.get("sql_error"):
             return f"{label}: poging {update.get('attempts')} mislukt, opnieuw proberen"
@@ -53,11 +57,16 @@ class TurnResult:
     notes: list[str] = field(default_factory=list)
     sql: str = ""
     attempts: int = 0
+    steps: list[str] = field(default_factory=list)
+    error: str = ""
 
     @classmethod
-    def from_state(cls, question: str, state: AgentState) -> "TurnResult":
+    def from_state(
+        cls, question: str, state: AgentState, steps: list[str] | None = None
+    ) -> "TurnResult":
         return cls(
             question=question,
+            steps=steps or [],
             answer=state.get("answer", ""),
             chart=state.get("chart"),
             rows=state.get("result_rows", []),
@@ -68,3 +77,14 @@ class TurnResult:
             sql=state.get("sql", ""),
             attempts=state.get("attempts", 0),
         )
+
+
+def friendly_error(exc: Exception) -> str:
+    """A message for the user instead of a stack trace."""
+    text = str(exc)
+    if "rate_limit" in text or "429" in text:
+        return (
+            "De gratis limiet van het taalmodel is even bereikt. "
+            "Wacht een minuut en stel je vraag opnieuw."
+        )
+    return f"Er ging iets mis ({type(exc).__name__}). Probeer het opnieuw of stel de vraag anders."
