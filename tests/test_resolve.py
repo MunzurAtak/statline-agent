@@ -26,6 +26,12 @@ def test_aliases_for_official_names() -> None:
     assert resolve_names(["Den Haag"], REGIONS)[0] == ["GM0518"]
 
 
+def test_ambiguous_name_prefers_municipality() -> None:
+    regions = codes(("PV26", "Utrecht (PV)"), ("GM0344", "Utrecht (gemeente)"))
+    assert resolve_names(["Utrecht"], regions)[0] == ["GM0344"]
+    assert resolve_names(["Utrecht (PV)"], regions)[0] == ["PV26"]  # explicit still works
+
+
 def test_exact_title_wins_over_prefix() -> None:
     assert resolve_names(["Utrecht"], REGIONS)[0] == ["GM0344"]
 

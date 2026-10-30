@@ -18,10 +18,21 @@ _PERIOD = re.compile(r"^(\d{4})([A-Z]{2})(\d{2})$")
 _DEFAULT_TITLE = re.compile(r"^(totaal|waarde\b|nederland\b)", re.IGNORECASE)
 # Common names that differ from the official CBS titles.
 ALIASES = {"den haag": "'s-gravenhage", "den bosch": "'s-hertogenbosch"}
+# "Utrecht" exists as "Utrecht (gemeente)" and "Utrecht (PV)": a plain name means the
+# municipality first, then the province, ... (by CBS region code prefix).
+REGION_PREFERENCE = ("GM", "PV", "CR", "LD")
+_SUFFIX = re.compile(r"\s*\([^)]*\)\s*$")
 
 
 def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def _preference(code: DimensionCode) -> int:
+    prefix = code.identifier[:2].upper()
+    return (
+        REGION_PREFERENCE.index(prefix) if prefix in REGION_PREFERENCE else len(REGION_PREFERENCE)
+    )
 
 
 def resolve_names(
@@ -29,10 +40,14 @@ def resolve_names(
 ) -> tuple[list[str], list[str]]:
     """Map plain-language names to code identifiers.
 
-    Tries, in order: exact title, title starting with the name (e.g. "Zuid-Holland" ->
-    "Zuid-Holland (PV)"), then fuzzy matching. Returns (codes, names that were not found).
+    Tries, in order: code, exact title, title without its "(...)" suffix (e.g. "Zuid-Holland"
+    -> "Zuid-Holland (PV)"; for ambiguous names the municipality wins), title starting with
+    the name, then fuzzy matching. Returns (codes, names that were not found).
     """
     by_title = {_normalize(c.title): c.identifier for c in codes}
+    by_base: dict[str, list[DimensionCode]] = {}
+    for code in codes:
+        by_base.setdefault(_normalize(_SUFFIX.sub("", code.title)), []).append(code)
     by_identifier = {c.identifier.lower(): c.identifier for c in codes}
     resolved: list[str] = []
     missing: list[str] = []
@@ -43,6 +58,8 @@ def resolve_names(
             match: str | None = by_identifier[key]
         elif key in by_title:
             match = by_title[key]
+        elif key in by_base:
+            match = min(by_base[key], key=_preference).identifier
         else:
             prefixed = [title for title in by_title if title.startswith(key)]
             fuzzy = difflib.get_close_matches(key, list(by_title), n=1, cutoff=cutoff)
