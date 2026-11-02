@@ -49,7 +49,8 @@ bijvoorbeeld periode, regio, inwoners (niet "Value"): ze worden de aslabels van 
 kolommen periode, regio en waarde.
 - Sorteer tijdreeksen op de periodecode (de kolom zonder _title), niet op de titel.
 - Bereken afgeleide cijfers zoals verschillen of procentuele groei in SQL als de vraag daarom \
-vraagt.
+vraagt. Geef dan ook de begin- en eindperiode en de begin- en eindwaarde als kolommen, zodat \
+het antwoord kan laten zien waar het percentage vandaan komt.
 - Zet kolomnamen met hoofdletters tussen dubbele aanhalingstekens, bijvoorbeeld "Value".
 - Een apostrof in tekst schrijf je dubbel, bijvoorbeeld '''s-Gravenhage' voor 's-Gravenhage."""
 

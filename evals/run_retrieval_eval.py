@@ -75,7 +75,7 @@ def main() -> None:
         "index_size": len(index),
         "reports": [report.summary() for report in reports],
     }
-    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8", newline="\n")
     print(f"\nSaved summary to {out}")
 
 

@@ -16,6 +16,7 @@ ROUTES = {
     "70072ned/Properties": "70072ned_properties.json",
     "70072ned/Dimensions": "70072ned_dimensions.json",
     "70072ned/MeasureCodes": "70072ned_measure_codes.json",
+    "70072ned/MeasureGroups": "70072ned_measure_groups.json",
     "70072ned/RegioSCodes": "70072ned_regios_codes.json",
     "70072ned/PeriodenCodes": "70072ned_perioden_codes.json",
     "70072ned/Observations": "70072ned_observations.json",

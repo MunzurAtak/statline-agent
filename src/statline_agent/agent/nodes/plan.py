@@ -1,7 +1,7 @@
 """Turn the question + chosen table into exact OData filters (measures and dimension codes)."""
 
 import difflib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Literal
 
 import numpy as np
@@ -18,11 +18,42 @@ from statline_agent.agent.resolve import (
     select_periods,
 )
 from statline_agent.agent.state import AgentState
-from statline_agent.cbs import Dimension, DimensionCode, Measure
+from statline_agent.cbs import CBSClient, CBSError, Dimension, DimensionCode, Measure, MeasureGroup
 from statline_agent.llm import with_structured_output
 
 MAX_MEASURES_IN_PROMPT = 25
 MAX_CODES_IN_PROMPT = 30
+GROUP_SEPARATOR = " > "
+
+
+def measure_labels(measures: Sequence[Measure], groups: Sequence[MeasureGroup]) -> dict[str, str]:
+    """Measure code -> title with its group path, e.g. 'Herkomst > Nederland'.
+
+    Without the group, 'Nederland' looks like the population of the country (it is the
+    number of people with a Dutch origin) and 'Totale groei' looks like a population size.
+    """
+    by_id = {g.id: g for g in groups}
+    labels = {}
+    for measure in measures:
+        path: list[str] = []
+        group_id = measure.measure_group_id
+        for _ in range(len(by_id)):  # bounded, so a cycle in the groups cannot hang the agent
+            if group_id is None or group_id not in by_id:
+                break
+            group = by_id[group_id]
+            if group.title and group.title != measure.title:
+                path.insert(0, group.title)
+            group_id = group.parent_id
+        labels[measure.identifier] = GROUP_SEPARATOR.join([*path, measure.title])
+    return labels
+
+
+def get_measure_groups(cbs: CBSClient, table_id: str) -> list[MeasureGroup]:
+    """Measure groups are nice to have: without them the agent falls back to plain titles."""
+    try:
+        return cbs.get_measure_groups(table_id)
+    except CBSError:
+        return []
 
 
 def shortlist_measures(
@@ -30,12 +61,14 @@ def shortlist_measures(
     measures: Sequence[Measure],
     embeddings: Embeddings,
     k: int = MAX_MEASURES_IN_PROMPT,
+    labels: Mapping[str, str] | None = None,
 ) -> list[Measure]:
     """Big tables have hundreds of measures; only the most similar ones go into the prompt."""
     if len(measures) <= k:
         return list(measures)
+    texts = [(labels or {}).get(m.identifier, m.title) for m in measures]
     query = np.array(embeddings.embed_query(question))
-    matrix = np.array(embeddings.embed_documents([m.title for m in measures]))
+    matrix = np.array(embeddings.embed_documents(texts))
     norms = np.linalg.norm(matrix, axis=1) * np.linalg.norm(query)
     scores = matrix @ query / np.where(norms == 0, 1, norms)
     top = np.argsort(-scores)[:k]
@@ -62,7 +95,15 @@ PLAN_SYSTEM_PROMPT = """\
 Je bent een data-analist. Bepaal welke gegevens uit de CBS-tabel nodig zijn om de vraag te \
 beantwoorden.
 
-- Kies 1 tot 3 onderwerpen (gebruik de codes tussen haakjes).
+- Kies 1 tot 3 onderwerpen (gebruik de codes tussen haakjes). Onderwerpen staan als \
+"groep > onderwerp"; lees ze als geheel. "Herkomst > Nederland" gaat over mensen met een \
+Nederlandse herkomst, niet over heel Nederland.
+- Een plaatsnaam in de vraag (Nederland, een provincie of gemeente) is een regio, geen \
+onderwerp. Heeft de tabel geen regio-indeling, dan gaan de cijfers over heel Nederland.
+- Vraagt de vraag naar groei of verandering tussen jaren, kies dan het onderwerp zelf (de \
+stand, zoals "Bevolking op 1 januari" of een gemiddelde waarde); de verandering wordt later \
+berekend. Kies een groei- of mutatie-onderwerp (zoals "Totale groei") alleen als de vraag \
+om dat cijfer zelf vraagt, bijvoorbeeld "hoeveel groeide de bevolking in 2024".
 - Noem bij filters alleen indelingen die in de vraag voorkomen, met waarden in gewone taal \
 (bijvoorbeeld de naam van een gemeente). Neem "provincie" of "gemeente" over als de vraag \
 dat noemt, bijvoorbeeld "provincie Utrecht". Niet-genoemde indelingen krijgen het totaal.
@@ -117,14 +158,17 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
     measures = ctx.cbs.get_measures(table_id)
     dimensions = ctx.cbs.get_dimensions(table_id)
     codes = {d.identifier: ctx.cbs.get_dimension_codes(table_id, d.identifier) for d in dimensions}
-    shortlist = shortlist_measures(state["question"], measures, ctx.embeddings)
+    labels = measure_labels(measures, get_measure_groups(ctx.cbs, table_id))
+    shortlist = shortlist_measures(state["question"], measures, ctx.embeddings, labels=labels)
 
     chain = PLAN_PROMPT | with_structured_output(ctx.llm, QueryPlan)
     plan = chain.invoke(
         {
             "question": state["question"],
             "table": f"{table_id} {state.get('table_title', '')}",
-            "measures": "\n".join(f"- {m.title} ({m.identifier}) [{m.unit}]" for m in shortlist),
+            "measures": "\n".join(
+                f"- {labels[m.identifier]} ({m.identifier}) [{m.unit}]" for m in shortlist
+            ),
             "dimensions": describe_dimensions(dimensions, codes),
         }
     )
@@ -134,7 +178,8 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
     chosen = [by_code[c.lower()] for c in plan.measures if c.lower() in by_code]
     if not chosen:
         chosen = shortlist[:1]
-        notes.append(f"Onbekende onderwerpen {plan.measures}; '{chosen[0].title}' gebruikt.")
+        label = labels[chosen[0].identifier]
+        notes.append(f"Onbekende onderwerpen {plan.measures}; '{label}' gebruikt.")
     filters: dict[str, list[str]] = {"Measure": [m.identifier for m in chosen]}
     requested: dict[str, list[str]] = {}  # what the LLM asked for, in plain language
 
@@ -165,6 +210,7 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
     return {
         "filters": filters,
         "requested_filters": requested,
-        "measure_titles": [m.title for m in chosen],
+        "measure_titles": [labels[m.identifier] for m in chosen],
+        "measure_units": [m.unit for m in chosen],
         "plan_notes": notes,
     }

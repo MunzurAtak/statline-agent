@@ -14,6 +14,7 @@ from statline_agent.cbs.models import (
     Dimension,
     DimensionCode,
     Measure,
+    MeasureGroup,
 )
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "Dimension",
     "DimensionCode",
     "Measure",
+    "MeasureGroup",
     "NoDataError",
     "QueryError",
     "QueryTooLargeError",

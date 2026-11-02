@@ -6,7 +6,12 @@ from langchain_core.embeddings import DeterministicFakeEmbedding
 from pydantic import BaseModel
 
 from statline_agent.agent import AgentContext, build_graph
-from statline_agent.agent.nodes.answer import Answer, failure_message, format_result
+from statline_agent.agent.nodes.answer import (
+    Answer,
+    describe_measures,
+    failure_message,
+    format_result,
+)
 from statline_agent.agent.nodes.data import MAX_SQL_ATTEMPTS, SqlQuery
 from statline_agent.agent.nodes.plan import QueryPlan
 from statline_agent.agent.nodes.search import TableChoice
@@ -47,7 +52,7 @@ def run(context: AgentContext, *responses: BaseModel) -> dict[str, Any]:
 
 
 def test_full_run_produces_answer_chart_and_source(context: AgentContext) -> None:
-    answer = Answer(text="In 1995 waren er 598.239 inwoners.", chart=LINE_CHART)
+    answer = Answer(text="In 1995 waren er 598.239 inwoners.", chart=LINE_CHART, chart_unit="")
     state = run(context, TableChoice(table_id="70072ned", reason="r"), PLAN, SQL, answer)
 
     assert state["answer"] == "In 1995 waren er 598.239 inwoners."
@@ -58,11 +63,27 @@ def test_full_run_produces_answer_chart_and_source(context: AgentContext) -> Non
     assert isinstance(context.llm, FakeStructuredChatModel)
     sent = prompt_text(context.llm.prompts[-1])
     assert "jaar | inwoners" in sent and "1995 | 598239.00" in sent
+    # ...and the measure with its group and unit, so the answer can apply the unit
+    assert "Onderwerpen: Bevolking > Totale bevolking (eenheid: aantal)" in sent
+
+
+def test_chart_gets_the_unit_from_the_answer(context: AgentContext) -> None:
+    answer = Answer(text="...", chart=LINE_CHART, chart_unit=" x 1 000 ")
+    state = run(context, TableChoice(table_id="70072ned", reason="r"), PLAN, SQL, answer)
+    assert state["chart"].unit == "x 1 000"
+
+
+def test_describe_measures_adds_units() -> None:
+    titles = ["Woningen > Gemiddelde WOZ-waarde", "Aantal woningen"]
+    assert describe_measures(titles, ["x 1 000 euro", ""]) == (
+        "Woningen > Gemiddelde WOZ-waarde (eenheid: x 1 000 euro); Aantal woningen"
+    )
+    assert describe_measures([], []) == "onbekend"
 
 
 def test_chart_with_unknown_columns_is_dropped(context: AgentContext) -> None:
     bad_chart = ChartSpec(type="bar", x="regio", y="inwoners", color="", title="?")
-    answer = Answer(text="...", chart=bad_chart)
+    answer = Answer(text="...", chart=bad_chart, chart_unit="")
     state = run(context, TableChoice(table_id="70072ned", reason="r"), PLAN, SQL, answer)
     assert state["chart"] is None
 

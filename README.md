@@ -103,6 +103,8 @@ graph TD;
   per `thread_id` (SQLite in the app). The confirmation step is a separate node, because
   LangGraph re-runs an interrupted node on resume: the LLM call that chose the table is not
   repeated (or paid for twice).
+- **Measures keep their context.** CBS measure titles are often only meaningful within their
+  group ("Nederland" under "Herkomst"), so the planner sees the full group path and the unit.
 - **Ambiguity is handled in code, not left to the model.** "Utrecht" is both a municipality
   and a province. Plain names resolve to the municipality; "provincie Utrecht" to the province,
   and if the model drops the word "provincie", code restores it from the question.
@@ -146,9 +148,11 @@ follow-up questions, a municipality/province ambiguity and an off-topic question
   (table, measure, region codes) computed live during the evaluation. The agent's own output is
   never used as the truth, and the cases keep working when CBS publishes new figures.
 - **Answer accuracy:** does the answer contain the reference number? Dutch number formats
-  ("673.804", "56,1%", "1,4 miljoen") are parsed with a small rounding tolerance.
+  ("673.804", "56,1%", "1,4 miljoen") are parsed with a small rounding tolerance. The CBS unit
+  must be applied: a WOZ value of 409 in "x 1 000 euro" only counts as "€ 409.000".
 - **Groundedness:** a second model (LLM-as-judge) checks whether every claim in the answer is
-  supported by the query result.
+  supported by the query result. It also gets the context the agent had (table, measures with
+  units, filters), so a source or a unit is not flagged as a hallucination.
 - Also measured: chosen table, SQL attempts, time, LLM calls and tokens per question.
 
 <!-- AGENT_EVAL:START -->
@@ -169,6 +173,19 @@ follow-up questions, a municipality/province ambiguity and an off-topic question
 
 **Table accuracy:** 100% · **Answer accuracy:** 83% · **Groundedness:** 64% · **Median time:** 27.3 s · **Avg LLM calls:** 5.5
 <!-- AGENT_EVAL:END -->
+
+### What the first run caught
+
+The baseline run ([commit d6ea39b](https://github.com/MunzurAtak/statline-agent/commit/d6ea39b)) scored 100% on table choice, but
+only 83% on answers and 64% on groundedness. The causes, and the fixes:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| "Nederland has 12.9 million inhabitants" | Table 85496NED has a measure titled *Nederland*: people with a Dutch origin | Measures are shown with their CBS group path (*Bevolking naar herkomst > ... > Nederland*), plus a prompt rule that a place name is a region, not a measure |
+| Amsterdam "shrank 45%" between 2015 and 2025 | Most likely the change in the measure *Totale groei* (yearly growth) was computed instead of the change in the population | Prompt rule: for a change over time, pick the level and let SQL compute the change |
+| "The average WOZ value is €409" | The answer did not know the unit (x 1 000 euro); the eval accepted it too | Units go into the answer prompt and onto the chart axis; the eval now requires the unit to be applied |
+| "periode 2026JJ00" in answers | Raw period codes leaked into the text | Prompt rule: periods and regions as people write them |
+| 3 of 4 groundedness failures were false alarms | The judge flagged Dutch number notation, the source mention and a period it could not see | The judge gets the agent's context and explicit rules on notation and units |
 
 ## Observability
 

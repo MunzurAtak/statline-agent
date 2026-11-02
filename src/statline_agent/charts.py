@@ -10,6 +10,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
 
 class ChartSpec(BaseModel):
@@ -20,6 +21,8 @@ class ChartSpec(BaseModel):
     y: str = Field(description="Kolom uit het resultaat met de getallen")
     color: str = Field(description="Kolom om lijnen/staven op te splitsen, of lege tekst")
     title: str = Field(description="Korte titel van de grafiek")
+    # Filled in by code after the LLM call, so not part of the schema the LLM sees.
+    unit: SkipJsonSchema[str] = ""
 
     def is_valid_for(self, columns: list[str]) -> bool:
         if self.type == "none":
@@ -40,4 +43,6 @@ def build_figure(spec: ChartSpec, rows: list[dict[str, Any]]) -> go.Figure:
         **({"markers": True} if spec.type == "line" else {"barmode": "group"}),
     )
     figure.update_layout(template="plotly_white", legend_title_text="")
+    if spec.unit:
+        figure.update_yaxes(title_text=f"{spec.y} ({spec.unit})")
     return figure

@@ -77,3 +77,15 @@ class Measure(CBSModel):
     decimals: int | None = None
     data_type: str = ""
     measure_group_id: str | None = None
+
+
+class MeasureGroup(CBSModel):
+    """A group of measures, e.g. 'Herkomst' for the measure 'Nederland'.
+
+    Measure titles are often only meaningful within their group, so the agent shows both.
+    """
+
+    id: str
+    title: str
+    description: str = ""
+    parent_id: str | None = None

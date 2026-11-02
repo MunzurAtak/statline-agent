@@ -25,9 +25,18 @@ Je bent een data-analist die vragen beantwoordt met cijfers van het CBS.
 - Antwoord in de taal van de vraag, in 2 tot 5 zinnen.
 - Gebruik uitsluitend getallen uit het queryresultaat; verzin niets. Rond getallen logisch af \
 en noem de periode waarop ze betrekking hebben.
+- Pas de eenheid van het onderwerp toe: bij "x 1 000 euro" is 409 gelijk aan € 409.000, bij \
+"x 1 000" is 12,5 gelijk aan 12.500.
+- Schrijf getallen in Nederlandse notatie: een punt voor duizendtallen en een komma voor \
+decimalen (1.415.104 en 56,1%).
+- Noem perioden en regio's zoals mensen ze schrijven (2026, 1 januari 2026, 2e kwartaal \
+2024), nooit als code (zoals 2026JJ00 of GM0518).
+- Gaat het om een verandering, noem dan ook de begin- en eindwaarde als die in het resultaat \
+staan.
 - Noem beperkingen als die er zijn (zie 'Let op').
 - Kies een grafiek die past bij het resultaat, met kolomnamen die exact in het resultaat \
-voorkomen. Kies type none als het resultaat één getal is."""
+voorkomen. Kies type none als het resultaat één getal is. Geef bij chart_unit de eenheid van \
+de y-kolom (bijvoorbeeld "x 1 000 euro" of "%"), of lege tekst voor gewone aantallen."""
 
 ANSWER_HUMAN_PROMPT = """\
 Vraag: {question}
@@ -48,6 +57,16 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages(
 class Answer(BaseModel):
     text: str = Field(description="Het antwoord op de vraag")
     chart: ChartSpec
+    chart_unit: str = Field(description="Eenheid van de y-kolom van de grafiek, of lege tekst")
+
+
+def describe_measures(titles: list[str], units: list[str]) -> str:
+    """'Gemiddelde WOZ-waarde (eenheid: x 1 000 euro)': the answer needs the unit to be right."""
+    parts = []
+    for i, title in enumerate(titles):
+        unit = units[i] if i < len(units) else ""
+        parts.append(f"{title} (eenheid: {unit})" if unit else title)
+    return "; ".join(parts) or "onbekend"
 
 
 def format_result(columns: list[str], rows: list[dict[str, Any]]) -> str:
@@ -107,14 +126,18 @@ def compose_answer(state: AgentState, runtime: Runtime[AgentContext]) -> AgentSt
         {
             "question": state["question"],
             "table": f"{table_id} {state.get('table_title', '')}",
-            "measures": ", ".join(state.get("measure_titles", [])),
+            "measures": describe_measures(
+                state.get("measure_titles", []), state.get("measure_units", [])
+            ),
             "notes": " ".join(state.get("plan_notes", [])) or "geen",
             "explanation": state.get("sql_explanation", ""),
             "result": format_result(columns, rows),
         }
     )
     # Only keep the chart if it refers to columns that really exist in the result.
-    chart = answer.chart if answer.chart.is_valid_for(columns) else None
+    chart = None
+    if answer.chart.is_valid_for(columns):
+        chart = answer.chart.model_copy(update={"unit": answer.chart_unit.strip()})
     return {
         "answer": answer.text,
         "chart": chart,

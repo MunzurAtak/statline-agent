@@ -47,6 +47,7 @@ def fake_agent(cbs_client: CBSClient, monkeypatch: pytest.MonkeyPatch) -> None:
             Answer(
                 text="Er wonen 598.239 mensen.",
                 chart=ChartSpec(type="bar", x="jaar", y="n", color="", title="Bevolking"),
+                chart_unit="",
             ),
         ]
     )

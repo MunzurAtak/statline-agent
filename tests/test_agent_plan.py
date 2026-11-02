@@ -5,10 +5,16 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import DeterministicFakeEmbedding
 
 from statline_agent.agent import AgentContext, build_graph
-from statline_agent.agent.nodes.plan import DimensionChoice, QueryPlan, shortlist_measures
+from statline_agent.agent.nodes.plan import (
+    DimensionChoice,
+    QueryPlan,
+    measure_labels,
+    shortlist_measures,
+)
 from statline_agent.agent.nodes.search import TableChoice
 from statline_agent.catalog import CatalogIndex, HybridCatalogRetriever
-from statline_agent.cbs import CBSClient, DataStore, Measure
+from statline_agent.cbs import CBSClient, DataStore, Measure, MeasureGroup
+from tests import conftest
 from tests.fakes import FakeStructuredChatModel, prompt_text
 
 # Uses the recorded 70072ned fixtures: 15 measures, RegioS codes NL01..PV29, Perioden 1995-2009.
@@ -61,7 +67,8 @@ def test_plan_resolves_names_and_period_range(context: AgentContext) -> None:
         "RegioS": ["PV28"],
         "Perioden": ["2005JJ00", "2006JJ00", "2007JJ00", "2008JJ00", "2009JJ00"],
     }
-    assert state["measure_titles"] == ["Totale bevolking"]
+    assert state["measure_titles"] == ["Bevolking > Totale bevolking"]
+    assert state["measure_units"] == ["aantal"]
     assert state["requested_filters"] == {"Regio's": ["Zuid-Holland"]}
     assert state["plan_notes"] == []
 
@@ -90,8 +97,53 @@ def test_prompt_lists_measure_codes_and_small_dimensions(context: AgentContext) 
     run(context, make_plan())
     assert isinstance(context.llm, FakeStructuredChatModel)
     sent = prompt_text(context.llm.prompts[-1])
-    assert "Totale bevolking (M000352_3) [aantal]" in sent
+    assert "Bevolking > Totale bevolking (M000352_3) [aantal]" in sent
+    # The group makes clear that 'Nederland' is an origin, not the country
+    assert "Bevolking > Herkomst > Nederland (X007245) [aantal]" in sent
     assert "Perioden: 1995 t/m 2009" in sent
+
+
+def test_plan_works_without_measure_groups(
+    context: AgentContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    routes = {k: v for k, v in conftest.ROUTES.items() if not k.endswith("MeasureGroups")}
+    monkeypatch.setattr(conftest, "ROUTES", routes)  # CBS answers 404
+    state = run(context, make_plan())
+    assert state["measure_titles"] == ["Totale bevolking"]
+
+
+def test_measure_labels_follow_nested_groups() -> None:
+    groups = [
+        MeasureGroup(id="G1", title="Bevolking naar herkomst"),
+        MeasureGroup(id="G2", title="Land van herkomst", parent_id="G1"),
+        MeasureGroup(id="G3", title="Totale groei"),  # same title as its measure: skipped
+    ]
+    measures = [
+        Measure(identifier="M1", title="Nederland", measure_group_id="G2"),
+        Measure(identifier="M2", title="Totale groei", measure_group_id="G3"),
+        Measure(identifier="M3", title="Zonder groep"),
+        Measure(identifier="M4", title="Onbekende groep", measure_group_id="X"),
+    ]
+    assert measure_labels(measures, groups) == {
+        "M1": "Bevolking naar herkomst > Land van herkomst > Nederland",
+        "M2": "Totale groei",
+        "M3": "Zonder groep",
+        "M4": "Onbekende groep",
+    }
+
+
+def test_measure_labels_survive_a_cycle_in_groups() -> None:
+    groups = [
+        MeasureGroup(id="A", title="A", parent_id="B"),
+        MeasureGroup(id="B", title="B", parent_id="A"),
+    ]
+    labels = measure_labels([Measure(identifier="M", title="m", measure_group_id="A")], groups)
+    assert labels["M"].endswith("A > m")
+    # Group titles equal to the measure title are skipped; the loop must still end
+    same = [MeasureGroup(id="A", title="m", parent_id="A")]
+    assert measure_labels([Measure(identifier="M", title="m", measure_group_id="A")], same) == {
+        "M": "m"
+    }
 
 
 def test_shortlist_keeps_small_lists_and_trims_large_ones() -> None:

@@ -7,7 +7,7 @@ working when CBS publishes new figures.
 
 import re
 import statistics
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -50,9 +50,14 @@ class AgentCase(BaseModel):
 
 @dataclass(frozen=True)
 class Expected:
-    value: float
+    value: float  # as stored by CBS, e.g. 374 for a WOZ value in "x 1 000 euro"
     is_percentage: bool = False
-    scale: float = 1.0  # CBS units like "x 1 000 euro": the answer may say 374 or 374.000
+    scale: float = 1.0  # from the CBS unit: 1000 for "x 1 000 euro"
+
+    @property
+    def target(self) -> float:
+        """The number a reader should see: the unit applied (374 -> 374.000 euro)."""
+        return self.value if self.is_percentage else self.value * self.scale
 
 
 # -- reference values ----------------------------------------------------------------------
@@ -152,51 +157,100 @@ def extract_numbers(text: str) -> list[tuple[float, bool]]:
 
 
 def mentions(answer: str, expected: Expected) -> bool:
-    """Does the answer contain the expected number (with sensible rounding tolerance)?"""
+    """Does the answer contain the expected number (with sensible rounding tolerance)?
+
+    The unit must be applied: for a WOZ value of 374 in "x 1 000 euro", only 374.000 (or
+    "374 duizend") counts. "€ 374" would mislead a reader, so it is marked wrong.
+    """
+    target = expected.target
     for number, approximate in extract_numbers(answer):
         if expected.is_percentage:
-            if abs(number - expected.value) <= 0.6:
+            if abs(number - target) <= 0.6:
                 return True
             continue
-        for target in {expected.value, expected.value * expected.scale}:
-            # Exact figures may be rounded a little (674.000 for 673.804); "1,4 miljoen" more.
-            tolerance = 0.02 if approximate else 0.001
-            if abs(number - target) <= max(tolerance * abs(target), 0.5):
-                return True
+        # Exact figures may be rounded a little (674.000 for 673.804); "1,4 miljoen" more.
+        tolerance = 0.02 if approximate else 0.001
+        if abs(number - target) <= max(tolerance * abs(target), 0.5):
+            return True
     return False
 
 
 # -- LLM-as-judge --------------------------------------------------------------------------
 
 JUDGE_SYSTEM_PROMPT = """\
-Je controleert antwoorden van een data-assistent. Beoordeel of elk getal en elke bewering in \
-het antwoord wordt ondersteund door het queryresultaat (afronden en eenvoudige berekeningen \
-zoals verschillen of percentages zijn toegestaan). Algemene bronvermeldingen zijn prima."""
+Je controleert antwoorden van een data-assistent die vragen beantwoordt met CBS-cijfers. \
+Beoordeel of de getallen en feitelijke beweringen in het antwoord kloppen met het \
+queryresultaat en de context.
+
+Dit is géén probleem:
+- Nederlandse notatie en afronding: 673.804 is 673804, 56,1 is 56.1, "ruim 1,4 miljoen" is \
+1415104.
+- Het toepassen van de eenheid uit de context: 409 met eenheid "x 1 000 euro" is € 409.000.
+- Eenvoudige berekeningen op het resultaat, zoals verschillen of percentages.
+- Bron, tabel, onderwerp, regio, periode en eenheid die in de context staan.
+- Uitleg over hoe een cijfer berekend is, zolang die klopt.
+
+Een probleem is alleen een getal of bewering die het resultaat of de context tegenspreekt, of \
+er niet uit af te leiden is. Zet grounded op true als er geen problemen zijn."""
+
+JUDGE_HUMAN_PROMPT = """\
+Vraag: {question}
+
+Context:
+{context}
+
+Queryresultaat:
+{result}
+
+Antwoord: {answer}"""
 
 JUDGE_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        ("system", JUDGE_SYSTEM_PROMPT),
-        ("human", "Vraag: {question}\n\nQueryresultaat:\n{result}\n\nAntwoord: {answer}"),
-    ]
+    [("system", JUDGE_SYSTEM_PROMPT), ("human", JUDGE_HUMAN_PROMPT)]
 )
 
 
 class Judgement(BaseModel):
-    grounded: bool = Field(
-        description="true als alles in het antwoord door het resultaat wordt gedekt"
-    )
     issues: list[str] = Field(
-        description="Beweringen die niet gedekt worden; leeg als er geen zijn"
+        description="Getallen of beweringen die niet kloppen of niet te onderbouwen zijn; "
+        "leeg als er geen zijn"
     )
+    grounded: bool = Field(description="true als de lijst met problemen leeg is")
+
+
+def judge_context(state: Mapping[str, Any]) -> str:
+    """What the agent knew besides the query result: table, measures with units, filters."""
+    titles = state.get("measure_titles", [])
+    units = state.get("measure_units", [])
+    lines = [f"Tabel: {state.get('table_id', '')} {state.get('table_title', '')}".rstrip()]
+    for i, title in enumerate(titles):
+        unit = units[i] if i < len(units) else ""
+        lines.append(f"Onderwerp: {title}" + (f" (eenheid: {unit})" if unit else ""))
+    for dimension, values in state.get("requested_filters", {}).items():
+        lines.append(f"{dimension}: {', '.join(values)}")
+    return "\n".join(lines)
 
 
 def judge_answer(
-    llm: BaseChatModel, question: str, columns: list[str], rows: list[dict[str, Any]], answer: str
+    llm: BaseChatModel,
+    question: str,
+    columns: list[str],
+    rows: list[dict[str, Any]],
+    answer: str,
+    context: str = "",
 ) -> Judgement:
     chain = JUDGE_PROMPT | with_structured_output(llm, Judgement)
-    return chain.invoke(
-        {"question": question, "result": format_result(columns, rows), "answer": answer}
+    verdict = chain.invoke(
+        {
+            "question": question,
+            "context": context or "geen",
+            "result": format_result(columns, rows),
+            "answer": answer,
+        }
     )
+    # Small judge models sometimes say "not grounded" without naming a problem.
+    if verdict.issues:
+        return verdict.model_copy(update={"grounded": False})
+    return verdict.model_copy(update={"grounded": True})
 
 
 # -- bookkeeping ---------------------------------------------------------------------------

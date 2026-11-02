@@ -38,7 +38,7 @@ FIRST_TURN: list[BaseModel] = [
     TableChoice(table_id="70072ned", reason="regio"),
     plan("Nederland"),
     SQL,
-    Answer(text="Antwoord over Nederland.", chart=NO_CHART),
+    Answer(text="Antwoord over Nederland.", chart=NO_CHART, chart_unit=""),
 ]
 
 
@@ -78,7 +78,7 @@ def test_follow_up_reuses_table_and_skips_search(context: AgentContext) -> None:
     intent = QuestionIntent(
         intent="follow_up", standalone_question="Hoeveel inwoners heeft Zuid-Holland?"
     )
-    answer = Answer(text="Antwoord over Zuid-Holland.", chart=NO_CHART)
+    answer = Answer(text="Antwoord over Zuid-Holland.", chart=NO_CHART, chart_unit="")
     # No TableChoice in this list: if the agent searched again, the fake LLM would fail.
     state = chat.ask("En Zuid-Holland?", intent, plan("Zuid-Holland"), SQL, answer)
 

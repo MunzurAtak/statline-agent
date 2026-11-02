@@ -11,6 +11,7 @@ from statline_agent.cbs.models import (
     Dimension,
     DimensionCode,
     Measure,
+    MeasureGroup,
 )
 
 CBS_ODATA_URL = "https://datasets.cbs.nl/odata/v1/CBS"
@@ -89,6 +90,10 @@ class CBSClient:
 
     def get_measures(self, table_id: str) -> list[Measure]:
         return [Measure.model_validate(r) for r in self._iter_pages(f"{table_id}/MeasureCodes")]
+
+    def get_measure_groups(self, table_id: str) -> list[MeasureGroup]:
+        rows = self._iter_pages(f"{table_id}/MeasureGroups")
+        return [MeasureGroup.model_validate(r) for r in rows]
 
     def get_dimension_codes(self, table_id: str, dimension_id: str) -> list[DimensionCode]:
         rows = self._iter_pages(f"{table_id}/{dimension_id}Codes")

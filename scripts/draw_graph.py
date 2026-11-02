@@ -24,7 +24,9 @@ def update_readme(text: str) -> str:
 
 
 def main() -> None:
-    README.write_text(update_readme(README.read_text(encoding="utf-8")), encoding="utf-8")
+    README.write_text(
+        update_readme(README.read_text(encoding="utf-8")), encoding="utf-8", newline="\n"
+    )
     print(f"Updated diagram in {README}")
 
 

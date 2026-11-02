@@ -4,12 +4,12 @@
   "summary": {
     "cases": 12,
     "table_accuracy": 1.0,
-    "answer_accuracy": 0.833,
-    "groundedness": 0.636,
-    "avg_sql_attempts": 1.09,
-    "median_seconds": 27.3,
-    "avg_llm_calls": 5.5,
-    "avg_tokens": 5984
+    "answer_accuracy": 0.917,
+    "groundedness": 1.0,
+    "avg_sql_attempts": 1,
+    "median_seconds": 24.5,
+    "avg_llm_calls": 5.4,
+    "avg_tokens": 6264
   },
   "cases": [
     {
@@ -17,7 +17,7 @@
       "question": "Hoeveel inwoners heeft Rotterdam?",
       "table_id": "03759ned",
       "table_ok": true,
-      "answer": "Rotterdam had 673.804 inwoners op 1 januari 2026.",
+      "answer": "Rotterdam had in 2026 een bevolking van 673.804 inwoners.",
       "expected": [
         673804.0,
         672960.0,
@@ -29,7 +29,7 @@
       "attempts": 1,
       "seconds": 7.8,
       "llm_calls": 5,
-      "tokens": 4884,
+      "tokens": 5645,
       "error": ""
     },
     {
@@ -44,14 +44,12 @@
         378121.0
       ],
       "answer_ok": true,
-      "grounded": false,
-      "issues": [
-        "Incorrect number formatting: 378.121 instead of 378121."
-      ],
+      "grounded": true,
+      "issues": [],
       "attempts": 1,
-      "seconds": 6.3,
+      "seconds": 5.7,
       "llm_calls": 5,
-      "tokens": 5530,
+      "tokens": 5496,
       "error": ""
     },
     {
@@ -59,21 +57,19 @@
       "question": "Hoeveel inwoners heeft de provincie Utrecht?",
       "table_id": "03759ned",
       "table_ok": true,
-      "answer": "In 2026 had de provincie Utrecht 1.415.104 inwoners. Dit cijfer is gebaseerd op de CBS‑statistiek 03759ned.",
+      "answer": "In 2026 had de provincie Utrecht 1.415.104 inwoners.",
       "expected": [
         1415104.0,
         1409144.0,
         1415104.0
       ],
       "answer_ok": true,
-      "grounded": false,
-      "issues": [
-        "This figure is based on the CBS-statistic 03759ned."
-      ],
+      "grounded": true,
+      "issues": [],
       "attempts": 1,
-      "seconds": 19.8,
+      "seconds": 23.2,
       "llm_calls": 5,
-      "tokens": 5668,
+      "tokens": 5680,
       "error": ""
     },
     {
@@ -81,7 +77,7 @@
       "question": "En Amsterdam?",
       "table_id": "03759ned",
       "table_ok": true,
-      "answer": "Amsterdam had 941.927 inwoners in 2026.",
+      "answer": "Amsterdam had in 2026 941.927 inwoners.",
       "expected": [
         941927.0,
         934526.0,
@@ -91,17 +87,17 @@
       "grounded": true,
       "issues": [],
       "attempts": 1,
-      "seconds": 47.9,
+      "seconds": 54.9,
       "llm_calls": 9,
-      "tokens": 8405,
+      "tokens": 9268,
       "error": ""
     },
     {
       "case_id": "vervolgvraag-provincie",
       "question": "En de provincie?",
-      "table_id": "37259ned",
+      "table_id": "03759ned",
       "table_ok": true,
-      "answer": "In 2025 had de provincie Utrecht 1.409.144 inwoners.",
+      "answer": "In 2026 had de provincie Utrecht 1.415.104 inwoners. Dit is het aantal op 1 januari 2026.",
       "expected": [
         1415104.0,
         1409144.0,
@@ -111,9 +107,9 @@
       "grounded": true,
       "issues": [],
       "attempts": 1,
-      "seconds": 55.1,
+      "seconds": 49.4,
       "llm_calls": 9,
-      "tokens": 9174,
+      "tokens": 9387,
       "error": ""
     },
     {
@@ -121,19 +117,17 @@
       "question": "Met hoeveel procent is de bevolking van Amsterdam tussen 2015 en 2025 gegroeid?",
       "table_id": "37259ned",
       "table_ok": true,
-      "answer": "De bevolking van Amsterdam is tussen 2015 en 2025 met ‑45,14 % gedaald. Dit percentage is berekend als (2025‑2015)/2015 × 100. Het negatieve resultaat duidt op een sterke afname in die periode.",
+      "answer": "De bevolking van Amsterdam is tussen 2015 en 2025 met 13,72 % gegroeid (van 821.752 naar 934.526 inwoners).",
       "expected": [
         13.72
       ],
-      "answer_ok": false,
-      "grounded": false,
-      "issues": [
-        "Dit percentage is berekend als (2025‑2015)/2015 × 100."
-      ],
-      "attempts": 2,
-      "seconds": 47.3,
-      "llm_calls": 6,
-      "tokens": 8013,
+      "answer_ok": true,
+      "grounded": true,
+      "issues": [],
+      "attempts": 1,
+      "seconds": 40.8,
+      "llm_calls": 5,
+      "tokens": 7236,
       "error": ""
     },
     {
@@ -141,7 +135,7 @@
       "question": "Hoeveel inwoners heeft Nederland?",
       "table_id": "85496NED",
       "table_ok": true,
-      "answer": "In 2026 had Nederland 12.859.141 inwoners. Dit cijfer betreft de periode 2026JJ00.",
+      "answer": "Nederland telde in 2026 12.859.141 inwoners.",
       "expected": [
         18130208.0,
         18044027.0
@@ -150,9 +144,9 @@
       "grounded": true,
       "issues": [],
       "attempts": 1,
-      "seconds": 25.8,
+      "seconds": 39.6,
       "llm_calls": 5,
-      "tokens": 5550,
+      "tokens": 6816,
       "error": ""
     },
     {
@@ -160,17 +154,17 @@
       "question": "Wat is de gemiddelde WOZ-waarde van woningen in Den Haag?",
       "table_id": "85036NED",
       "table_ok": true,
-      "answer": "De gemiddelde WOZ-waarde van woningen in Den Haag was €409 in 2026.",
+      "answer": "De gemiddelde WOZ‑waarde van woningen in Den Haag was in 2026 € 409.000.",
       "expected": [
-        409.0
+        409000.0
       ],
       "answer_ok": true,
       "grounded": true,
       "issues": [],
       "attempts": 1,
-      "seconds": 32.2,
+      "seconds": 25.0,
       "llm_calls": 5,
-      "tokens": 5627,
+      "tokens": 5488,
       "error": ""
     },
     {
@@ -178,19 +172,17 @@
       "question": "Met hoeveel procent is de gemiddelde WOZ-waarde in Den Haag gestegen sinds 2020?",
       "table_id": "85036NED",
       "table_ok": true,
-      "answer": "De gemiddelde WOZ‑waarde in Den Haag is tussen 2020 en 2026 met ongeveer 56,1 % gestegen (periode 2026JJ00).",
+      "answer": "De gemiddelde WOZ-waarde van woningen in Den Haag is van € 262.000 in 2020 gestegen naar € 409.000 in 2026, een stijging van 56,11 %. Dit betekent een toename van 56,11 % over de periode 2020‑2026.",
       "expected": [
         56.11
       ],
       "answer_ok": true,
-      "grounded": false,
-      "issues": [
-        "De vermelding dat de stijging tussen 2020 en 2026 plaatsvond is niet ondersteund door het queryresultaat."
-      ],
+      "grounded": true,
+      "issues": [],
       "attempts": 1,
-      "seconds": 30.2,
+      "seconds": 39.5,
       "llm_calls": 5,
-      "tokens": 5912,
+      "tokens": 6843,
       "error": ""
     },
     {
@@ -198,17 +190,17 @@
       "question": "Wat was de gemiddelde WOZ-waarde in Rotterdam in 2020?",
       "table_id": "85036NED",
       "table_ok": true,
-      "answer": "In 2020 bedroeg de gemiddelde WOZ‑waarde van woningen in Rotterdam 221.00 euro.",
+      "answer": "In 2020 bedroeg de gemiddelde WOZ‑waarde van woningen in Rotterdam € 221.000. Dit is de waarde die in de tabel staat.",
       "expected": [
-        221.0
+        221000.0
       ],
       "answer_ok": true,
       "grounded": true,
       "issues": [],
       "attempts": 1,
-      "seconds": 26.6,
+      "seconds": 24.0,
       "llm_calls": 5,
-      "tokens": 5353,
+      "tokens": 5658,
       "error": ""
     },
     {
@@ -216,7 +208,7 @@
       "question": "Hoeveel faillissementen werden er in 2024 uitgesproken?",
       "table_id": "82242NED",
       "table_ok": true,
-      "answer": "In 2024 werden er 4.659 faillissementen uitgesproken. Dit is het totale aantal uitgesproken faillissementen volgens CBS. Het cijfer betreft het volledige jaar 2024.",
+      "answer": "In 2024 werden er 4.659 faillissementen uitgesproken.",
       "expected": [
         4659.0
       ],
@@ -224,9 +216,9 @@
       "grounded": true,
       "issues": [],
       "attempts": 1,
-      "seconds": 28.0,
+      "seconds": 22.2,
       "llm_calls": 5,
-      "tokens": 5183,
+      "tokens": 5277,
       "error": ""
     },
     {
@@ -234,15 +226,15 @@
       "question": "Wie wint het WK voetbal?",
       "table_id": null,
       "table_ok": true,
-      "answer": "Ik heb geen CBS-tabel gevonden die deze vraag kan beantwoorden. Geen tabel bevat informatie over de winnaar van het WK voetbal",
+      "answer": "Ik heb geen CBS-tabel gevonden die deze vraag kan beantwoorden. Geen van de tabellen bevat gegevens over het WK voetbal.",
       "expected": [],
       "answer_ok": true,
       "grounded": null,
       "issues": [],
       "attempts": 0,
-      "seconds": 7.4,
+      "seconds": 11.2,
       "llm_calls": 2,
-      "tokens": 2504,
+      "tokens": 2378,
       "error": ""
     }
   ]

@@ -29,6 +29,7 @@ from statline_agent.agent_eval import (
     UsageCounter,
     compute_reference,
     judge_answer,
+    judge_context,
     mentions,
     summarize,
 )
@@ -54,7 +55,7 @@ def run_case(
     except Exception as exc:
         result.error = f"reference query failed: {exc}"
         return result
-    result.expected = [round(e.value, 2) for e in expected]
+    result.expected = [round(e.target, 2) for e in expected]
 
     counter = UsageCounter()
     config: RunnableConfig = {
@@ -90,7 +91,12 @@ def run_case(
     if judge is not None and rows and result.answer:
         try:
             verdict = judge_answer(
-                judge, result.question, state.get("result_columns", []), rows, result.answer
+                judge,
+                result.question,
+                state.get("result_columns", []),
+                rows,
+                result.answer,
+                context=judge_context(state),
             )
             result.grounded, result.issues = verdict.grounded, verdict.issues
         except Exception as exc:
@@ -163,21 +169,21 @@ def main() -> None:
         "cases": [asdict(r) for r in results],
     }
     (RESULTS_DIR / "agent.json").write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False), "utf-8"
+        json.dumps(payload, indent=2, ensure_ascii=False), "utf-8", newline="\n"
     )
-    (RESULTS_DIR / "agent.md").write_text(markdown_report(results, summary), "utf-8")
+    (RESULTS_DIR / "agent.md").write_text(markdown_report(results, summary), "utf-8", newline="\n")
     print(f"Saved results to {RESULTS_DIR}")
     update_readme(markdown_report(results, summary))
 
 
 def update_readme(report: str) -> None:
     """Put the latest results table in the README, between the AGENT_EVAL markers."""
-    text = README.read_text("utf-8")
+    text = README.read_text("utf-8", newline="\n")
     if START not in text:
         return
     before, rest = text.split(START, 1)
     _, after = rest.split(END, 1)
-    README.write_text(f"{before}{START}\n{report}{END}{after}", "utf-8")
+    README.write_text(f"{before}{START}\n{report}{END}{after}", "utf-8", newline="\n")
     print(f"Updated results in {README}")
 
 

@@ -46,6 +46,13 @@ def test_get_measures(cbs_client: CBSClient) -> None:
     assert measures["M000352_3"].unit == "aantal"
 
 
+def test_get_measure_groups(cbs_client: CBSClient) -> None:
+    groups = {g.id: g for g in cbs_client.get_measure_groups("70072ned")}
+    assert groups["T001040"].title == "Herkomst"
+    assert groups["T001040"].parent_id == "M000352_2"
+    assert groups["M000352_2"].parent_id is None
+
+
 def test_get_dimension_codes(cbs_client: CBSClient) -> None:
     codes = cbs_client.get_dimension_codes("70072ned", "RegioS")
     assert codes[0].identifier == "NL01"
