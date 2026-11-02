@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 from langchain_core.documents import Document
-from langchain_core.embeddings import DeterministicFakeEmbedding
+from langchain_core.embeddings import DeterministicFakeEmbedding, Embeddings
 
 from statline_agent.agent import AgentContext, build_graph
 from statline_agent.agent.nodes.plan import (
@@ -155,3 +155,36 @@ def test_shortlist_keeps_small_lists_and_trims_large_ones() -> None:
     assert [m.identifier for m in short] == sorted(
         (m.identifier for m in short), key=lambda x: int(x[1:])
     )
+
+
+class KeywordEmbeddings(Embeddings):
+    """Similarity = shared keywords, so tests can steer what matches the question."""
+
+    WORDS = ("nederland", "bevolking", "inwoners", "europa")
+
+    def _vector(self, text: str) -> list[float]:
+        text = text.lower()
+        return [float(text.count(word)) for word in self.WORDS]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self._vector(t) for t in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._vector(text)
+
+
+def test_shortlist_always_keeps_the_best_totals() -> None:
+    # Like CBS table 85496NED: the place name in the question matches many origin measures
+    origins = [Measure(identifier=f"H{i}", title="Europa (exclusief Nederland)") for i in range(8)]
+    measures = [
+        Measure(identifier="T1", title="Totale bevolking"),
+        Measure(identifier="N1", title="Nederland"),
+        *origins,
+        Measure(identifier="X1", title="Gehuwd"),
+    ]
+    short = shortlist_measures(
+        "Hoeveel inwoners heeft Nederland?", measures, KeywordEmbeddings(), k=4
+    )
+    ids = [m.identifier for m in short]
+    assert "T1" in ids  # the total survives, although it shares no keyword with the question
+    assert ids[0] == "T1" and len(ids) == 4  # table order is kept

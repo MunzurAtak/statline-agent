@@ -1,7 +1,7 @@
 """Turn the question + chosen table into exact OData filters (measures and dimension codes)."""
 
 import difflib
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Literal
 
 import numpy as np
@@ -22,6 +22,8 @@ from statline_agent.cbs import CBSClient, CBSError, Dimension, DimensionCode, Me
 from statline_agent.llm import with_structured_output
 
 MAX_MEASURES_IN_PROMPT = 25
+MAX_TOTALS_IN_PROMPT = 5
+TOTAL_PREFIXES = ("totaal", "totale")
 MAX_CODES_IN_PROMPT = 30
 GROUP_SEPARATOR = " > "
 
@@ -56,23 +58,37 @@ def get_measure_groups(cbs: CBSClient, table_id: str) -> list[MeasureGroup]:
         return []
 
 
+def is_total(measure: Measure) -> bool:
+    return measure.title.strip().lower().startswith(TOTAL_PREFIXES)
+
+
 def shortlist_measures(
     question: str,
     measures: Sequence[Measure],
     embeddings: Embeddings,
     k: int = MAX_MEASURES_IN_PROMPT,
-    labels: Mapping[str, str] | None = None,
 ) -> list[Measure]:
-    """Big tables have hundreds of measures; only the most similar ones go into the prompt."""
+    """Big tables have hundreds of measures; only the most similar ones go into the prompt.
+
+    The best-matching totals ("Totale bevolking") are always included. Similarity alone can
+    push them out: in "Hoeveel inwoners heeft Nederland?" the place name matches dozens of
+    origin measures ("Nederland", "Europa (exclusief Nederland)") better than the total.
+    """
     if len(measures) <= k:
         return list(measures)
-    texts = [(labels or {}).get(m.identifier, m.title) for m in measures]
     query = np.array(embeddings.embed_query(question))
-    matrix = np.array(embeddings.embed_documents(texts))
+    matrix = np.array(embeddings.embed_documents([m.title for m in measures]))
     norms = np.linalg.norm(matrix, axis=1) * np.linalg.norm(query)
     scores = matrix @ query / np.where(norms == 0, 1, norms)
-    top = np.argsort(-scores)[:k]
-    return [measures[i] for i in sorted(top)]  # keep the table's own (logical) order
+    ranked = [int(i) for i in np.argsort(-scores, kind="stable")]
+
+    totals = [i for i in ranked if is_total(measures[i])][: min(MAX_TOTALS_IN_PROMPT, k)]
+    chosen = set(totals)
+    for i in ranked:
+        if len(chosen) >= k:
+            break
+        chosen.add(i)
+    return [measures[i] for i in sorted(chosen)]  # keep the table's own (logical) order
 
 
 class DimensionChoice(BaseModel):
@@ -159,7 +175,7 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
     dimensions = ctx.cbs.get_dimensions(table_id)
     codes = {d.identifier: ctx.cbs.get_dimension_codes(table_id, d.identifier) for d in dimensions}
     labels = measure_labels(measures, get_measure_groups(ctx.cbs, table_id))
-    shortlist = shortlist_measures(state["question"], measures, ctx.embeddings, labels=labels)
+    shortlist = shortlist_measures(state["question"], measures, ctx.embeddings)
 
     chain = PLAN_PROMPT | with_structured_output(ctx.llm, QueryPlan)
     plan = chain.invoke(

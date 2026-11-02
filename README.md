@@ -158,20 +158,20 @@ follow-up questions, a municipality/province ambiguity and an off-topic question
 <!-- AGENT_EVAL:START -->
 | Case | Table | Answer | Grounded | SQL attempts | Seconds | LLM calls |
 |---|---|---|---|---|---|---|
-| inwoners-rotterdam | ✅ 03759ned | ✅ | ✅ | 1 | 7.8 | 5 |
-| inwoners-gemeente-utrecht | ✅ 03759ned | ✅ | ❌ | 1 | 6.3 | 5 |
-| inwoners-provincie-utrecht | ✅ 03759ned | ✅ | ❌ | 1 | 19.8 | 5 |
-| vervolgvraag-amsterdam | ✅ 03759ned | ✅ | ✅ | 1 | 47.9 | 9 |
-| vervolgvraag-provincie | ✅ 37259ned | ✅ | ✅ | 1 | 55.1 | 9 |
-| groei-amsterdam | ✅ 37259ned | ❌ | ❌ | 2 | 47.3 | 6 |
-| inwoners-nederland | ✅ 85496NED | ❌ | ✅ | 1 | 25.8 | 5 |
-| woz-den-haag | ✅ 85036NED | ✅ | ✅ | 1 | 32.2 | 5 |
-| woz-den-haag-groei | ✅ 85036NED | ✅ | ❌ | 1 | 30.2 | 5 |
-| woz-rotterdam-2020 | ✅ 85036NED | ✅ | ✅ | 1 | 26.6 | 5 |
-| faillissementen-2024 | ✅ 82242NED | ✅ | ✅ | 1 | 28.0 | 5 |
-| off-topic | ✅  | ✅ | - | - | 7.4 | 2 |
+| inwoners-rotterdam | ✅ 03759ned | ✅ | ✅ | 1 | 8.2 | 5 |
+| inwoners-gemeente-utrecht | ✅ 03759ned | ✅ | ✅ | 1 | 6.4 | 5 |
+| inwoners-provincie-utrecht | ✅ 03759ned | ✅ | ✅ | 1 | 20.6 | 5 |
+| vervolgvraag-amsterdam | ✅ 03759ned | ✅ | ✅ | 1 | 48.4 | 9 |
+| vervolgvraag-provincie | ✅ 03759ned | ✅ | ✅ | 1 | 43.7 | 9 |
+| groei-amsterdam | ✅ 37259ned | ✅ | ✅ | 1 | 29.7 | 5 |
+| inwoners-nederland | ❌ 85524NED | ❌ | ❌ | 1 | 30.3 | 5 |
+| woz-den-haag | ✅ 85036NED | ✅ | ✅ | 1 | 26.0 | 5 |
+| woz-den-haag-groei | ✅ 85036NED | ✅ | ✅ | 1 | 32.4 | 5 |
+| woz-rotterdam-2020 | ✅ 85036NED | ✅ | ✅ | 1 | 21.9 | 5 |
+| faillissementen-2024 | ✅ 82242NED | ✅ | ✅ | 1 | 20.5 | 5 |
+| off-topic | ✅  | ✅ | - | - | 7.7 | 2 |
 
-**Table accuracy:** 100% · **Answer accuracy:** 83% · **Groundedness:** 64% · **Median time:** 27.3 s · **Avg LLM calls:** 5.5
+**Table accuracy:** 92% · **Answer accuracy:** 92% · **Groundedness:** 91% · **Median time:** 23.9 s · **Avg LLM calls:** 5.4
 <!-- AGENT_EVAL:END -->
 
 ### What the first run caught
@@ -181,7 +181,7 @@ only 83% on answers and 64% on groundedness. The causes, and the fixes:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| "Nederland has 12.9 million inhabitants" | Table 85496NED has a measure titled *Nederland*: people with a Dutch origin | Measures are shown with their CBS group path (*Bevolking naar herkomst > ... > Nederland*), plus a prompt rule that a place name is a region, not a measure |
+| "Nederland has 12.9 million inhabitants" | Table 85496NED has a measure titled *Nederland*: people with a Dutch origin | Measures are shown with their CBS group path (*Bevolking naar herkomst > Herkomstland > Nederland*), a prompt rule says a place name is a region, and the 25-measure shortlist always keeps the best-matching totals. The group path alone did not fix it: on 79 measures, the place name most likely pushed *Totale bevolking* out of the shortlist |
 | Amsterdam "shrank 45%" between 2015 and 2025 | Most likely the change in the measure *Totale groei* (yearly growth) was computed instead of the change in the population | Prompt rule: for a change over time, pick the level and let SQL compute the change |
 | "The average WOZ value is €409" | The answer did not know the unit (x 1 000 euro); the eval accepted it too | Units go into the answer prompt and onto the chart axis; the eval now requires the unit to be applied |
 | "periode 2026JJ00" in answers | Raw period codes leaked into the text | Prompt rule: periods and regions as people write them |

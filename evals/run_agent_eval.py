@@ -178,7 +178,7 @@ def main() -> None:
 
 def update_readme(report: str) -> None:
     """Put the latest results table in the README, between the AGENT_EVAL markers."""
-    text = README.read_text("utf-8", newline="\n")
+    text = README.read_text("utf-8")
     if START not in text:
         return
     before, rest = text.split(START, 1)
