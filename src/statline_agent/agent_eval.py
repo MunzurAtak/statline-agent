@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from statline_agent.agent.nodes.answer import format_result
 from statline_agent.agent.resolve import default_code, resolve_names, select_periods
-from statline_agent.cbs import CBSClient
+from statline_agent.cbs import CBSClient, normalize_unit
 from statline_agent.llm import with_structured_output
 
 # -- cases ------------------------------------------------------------------------------
@@ -70,12 +70,8 @@ def _norm(text: str) -> str:
 
 
 def unit_scale(unit: str) -> float:
-    unit = _norm(unit)
-    if "mln" in unit or "miljoen" in unit:
-        return 1_000_000.0
-    if "1 000" in unit or "1000" in unit:
-        return 1_000.0
-    return 1.0
+    """1000 for "x 1 000 euro"; 1 for "per 1 000 inwoners" (a rate, not a multiplier)."""
+    return normalize_unit(unit)[0]
 
 
 def reference_value(ref: ReferenceQuery, values: dict[str, float]) -> float:
@@ -185,7 +181,7 @@ queryresultaat en de context.
 Dit is géén probleem:
 - Nederlandse notatie en afronding: 673.804 is 673804, 56,1 is 56.1, "ruim 1,4 miljoen" is \
 1415104.
-- Het toepassen van de eenheid uit de context: 409 met eenheid "x 1 000 euro" is € 409.000.
+- Een eenheid uit de context bij een getal zetten (409000 met eenheid euro is € 409.000).
 - Eenvoudige berekeningen op het resultaat, zoals verschillen of percentages.
 - Bron, tabel, onderwerp, regio, periode en eenheid die in de context staan.
 - Uitleg over hoe een cijfer berekend is, zolang die klopt.

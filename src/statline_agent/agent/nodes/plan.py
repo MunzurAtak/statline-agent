@@ -1,7 +1,8 @@
 """Turn the question + chosen table into exact OData filters (measures and dimension codes)."""
 
 import difflib
-from collections.abc import Sequence
+import re
+from collections.abc import Mapping, Sequence
 from typing import Literal
 
 import numpy as np
@@ -18,7 +19,15 @@ from statline_agent.agent.resolve import (
     select_periods,
 )
 from statline_agent.agent.state import AgentState
-from statline_agent.cbs import CBSClient, CBSError, Dimension, DimensionCode, Measure, MeasureGroup
+from statline_agent.cbs import (
+    CBSClient,
+    CBSError,
+    Dimension,
+    DimensionCode,
+    Measure,
+    MeasureGroup,
+    normalize_unit,
+)
 from statline_agent.llm import with_structured_output
 
 MAX_MEASURES_IN_PROMPT = 25
@@ -156,14 +165,49 @@ def describe_dimensions(
     return "\n".join(lines)
 
 
+_CODE_IN_PARENTHESES = re.compile(r"\(([^()]+)\)\s*(?:\[[^\]]*\])?\s*$")
+
+
+def match_measure(
+    answer: str, shortlist: Sequence[Measure], labels: Mapping[str, str]
+) -> Measure | None:
+    """Map what the LLM returned to a measure: normally a code, but smaller models sometimes
+    copy the whole prompt line ("... > Totaal bevolking (M000351_3) [x 1 000]") or a title.
+    """
+    text = answer.strip()
+    by_code = {m.identifier.lower(): m for m in shortlist}
+    found = _CODE_IN_PARENTHESES.search(text)
+    for candidate in (text, found.group(1) if found else ""):
+        if candidate.strip().lower() in by_code:
+            return by_code[candidate.strip().lower()]
+    by_label = {labels.get(m.identifier, m.title).lower(): m for m in shortlist}
+    if text.lower() in by_label:
+        return by_label[text.lower()]
+    same_title = [m for m in shortlist if m.title.lower() == text.lower()]
+    return same_title[0] if len(same_title) == 1 else None  # ambiguous titles: no guess
+
+
+def _matches(name: str, dimension: Dimension) -> bool:
+    names = {dimension.title.lower(), dimension.identifier.lower()}
+    key = name.strip().lower()
+    return key in names or bool(difflib.get_close_matches(key, list(names), n=1, cutoff=0.8))
+
+
 def _requested_values(plan: QueryPlan, dimension: Dimension) -> list[str]:
     """Find the filter the LLM gave for this dimension (matching title or identifier)."""
-    names = {dimension.title.lower(), dimension.identifier.lower()}
     for choice in plan.filters:
-        key = choice.dimension.strip().lower()
-        if key in names or difflib.get_close_matches(key, list(names), n=1, cutoff=0.8):
+        if _matches(choice.dimension, dimension):
             return choice.values
     return []
+
+
+def unmatched_filters(plan: QueryPlan, dimensions: Sequence[Dimension]) -> list[DimensionChoice]:
+    """Filters on a dimension the table does not have, e.g. a municipality in a national table."""
+    return [
+        choice
+        for choice in plan.filters
+        if choice.values and not any(_matches(choice.dimension, d) for d in dimensions)
+    ]
 
 
 def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
@@ -190,14 +234,22 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
     )
 
     notes: list[str] = []
-    by_code = {m.identifier.lower(): m for m in shortlist}
-    chosen = [by_code[c.lower()] for c in plan.measures if c.lower() in by_code]
+    chosen: list[Measure] = []
+    for answer in plan.measures:
+        measure = match_measure(answer, shortlist, labels)
+        if measure is not None and measure not in chosen:
+            chosen.append(measure)
     if not chosen:
         chosen = shortlist[:1]
         label = labels[chosen[0].identifier]
         notes.append(f"Onbekende onderwerpen {plan.measures}; '{label}' gebruikt.")
     filters: dict[str, list[str]] = {"Measure": [m.identifier for m in chosen]}
     requested: dict[str, list[str]] = {}  # what the LLM asked for, in plain language
+    for choice in unmatched_filters(plan, dimensions):
+        notes.append(
+            f"De tabel heeft geen indeling {choice.dimension}; {', '.join(choice.values)} kon "
+            "niet worden geselecteerd, dus de cijfers gelden voor het totaal."
+        )
 
     for dim in dimensions:
         dim_codes = codes[dim.identifier]
@@ -227,6 +279,6 @@ def plan_query(state: AgentState, runtime: Runtime[AgentContext]) -> AgentState:
         "filters": filters,
         "requested_filters": requested,
         "measure_titles": [labels[m.identifier] for m in chosen],
-        "measure_units": [m.unit for m in chosen],
+        "measure_units": [normalize_unit(m.unit)[1] for m in chosen],  # as in the data
         "plan_notes": notes,
     }

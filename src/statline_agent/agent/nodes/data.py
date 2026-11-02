@@ -40,7 +40,8 @@ de vraag beantwoordt.
 
 - De tabel bevat al precies de gevraagde selectie (onderwerpen, regio's en perioden). Filter \
 daar niet opnieuw op, tenzij de vraag om een deel van de gegevens vraagt.
-- Gebruik de *_title-kolommen voor namen (onderwerp, regio, periode) en Value voor de cijfers.
+- Gebruik de *_title-kolommen voor namen (onderwerp, regio, periode) en Value voor de cijfers. \
+Value staat al in de eenheid uit de kolom Unit; vermenigvuldig niet met 1000 of iets anders.
 - Neem altijd de naamkolommen op die het resultaat beschrijven (zoals regio en periode), ook \
 als er maar één rij is: het antwoord moet kunnen zeggen waar de cijfers over gaan.
 - Geef de resultaatkolommen korte Nederlandse namen in kleine letters die zeggen wat ze zijn, \

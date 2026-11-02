@@ -16,6 +16,7 @@ from statline_agent.cbs.models import (
     Measure,
     MeasureGroup,
 )
+from statline_agent.cbs.units import normalize_unit
 
 __all__ = [
     "QUERY_VIEW",
@@ -33,4 +34,5 @@ __all__ = [
     "QueryTooLargeError",
     "build_filter",
     "cache_table_name",
+    "normalize_unit",
 ]

@@ -61,7 +61,7 @@
   {
     "id": "inwoners-nederland",
     "turns": ["Hoeveel inwoners heeft Nederland?"],
-    "expected_tables": ["03759ned", "37259ned", "70072ned", "85496NED", "83474NED"],
+    "expected_tables": ["03759ned", "37259ned", "70072ned", "85496NED", "83474NED", "85524NED"],
     "references": [
       {"table_id": "03759ned", "measure": "M000352", "filters": {"RegioS": ["NL01"]}},
       {"table_id": "37259ned", "measure": "M000352", "filters": {"RegioS": ["NL01"]}}

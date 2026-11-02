@@ -38,7 +38,7 @@ def create_context(settings: Settings | None = None) -> AgentContext:
     """Wire up the real dependencies (LLM, catalog index, retriever, CBS client)."""
     settings = settings or get_settings()
     configure_tracing(settings)
-    llm = get_chat_model(settings)
+    llm = get_chat_model(settings, check=True)
     embeddings = FastEmbedEmbeddings(settings.embedding_model)
     index = CatalogIndex.load(settings.catalog_index_dir, embeddings)
     retriever = HybridCatalogRetriever(

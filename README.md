@@ -103,6 +103,9 @@ graph TD;
   per `thread_id` (SQLite in the app). The confirmation step is a separate node, because
   LangGraph re-runs an interrupted node on resume: the LLM call that chose the table is not
   repeated (or paid for twice).
+- **Units are applied in code.** Many CBS figures are published in thousands or millions. The
+  data store converts them to plain numbers on load, so neither the SQL nor the answer has to
+  do unit arithmetic, which the model got wrong in both directions.
 - **Measures keep their context.** CBS measure titles are often only meaningful within their
   group ("Nederland" under "Herkomst"), so the planner sees the full group path and the unit.
 - **Ambiguity is handled in code, not left to the model.** "Utrecht" is both a municipality
@@ -174,6 +177,19 @@ follow-up questions, a municipality/province ambiguity and an off-topic question
 **Table accuracy:** 92% · **Answer accuracy:** 92% · **Groundedness:** 91% · **Median time:** 23.9 s · **Avg LLM calls:** 5.4
 <!-- AGENT_EVAL:END -->
 
+### Model comparison
+
+Every full evaluation run adds or updates its model here. Table and answer accuracy are checked
+without an LLM, against the reference values. Groundedness uses the same judge for every model
+when a Groq key is set (`gpt-oss-20b`, which means that model judges its own answers), so the
+rows are comparable. Local times are measured on a laptop CPU.
+
+<!-- MODEL_COMPARISON:START -->
+| Model | Runs on | Table | Answer | Grounded | Median time | Judge |
+|---|---|---|---|---|---|---|
+| `openai/gpt-oss-120b` | Groq (cloud) | 92% | 92% | 91% | 23.9 s | `openai/gpt-oss-20b` |
+<!-- MODEL_COMPARISON:END -->
+
 ### What the first run caught
 
 The baseline run ([commit d6ea39b](https://github.com/MunzurAtak/statline-agent/commit/d6ea39b)) scored 100% on table choice, but
@@ -183,7 +199,7 @@ only 83% on answers and 64% on groundedness. The causes, and the fixes:
 |---|---|---|
 | "Nederland has 12.9 million inhabitants" | Table 85496NED has a measure titled *Nederland*: people with a Dutch origin | Measures are shown with their CBS group path (*Bevolking naar herkomst > Herkomstland > Nederland*), a prompt rule says a place name is a region, and the 25-measure shortlist always keeps the best-matching totals. The group path alone did not fix it: on 79 measures, the place name most likely pushed *Totale bevolking* out of the shortlist |
 | Amsterdam "shrank 45%" between 2015 and 2025 | Most likely the change in the measure *Totale groei* (yearly growth) was computed instead of the change in the population | Prompt rule: for a change over time, pick the level and let SQL compute the change |
-| "The average WOZ value is €409" | The answer did not know the unit (x 1 000 euro); the eval accepted it too | Units go into the answer prompt and onto the chart axis; the eval now requires the unit to be applied |
+| "The average WOZ value is €409" | The answer did not know the unit (x 1 000 euro); the eval accepted it too | Units are applied in code when the data is loaded (409 in "x 1 000 euro" is stored as 409000 euro) and shown on the chart axis; the eval now requires the unit to be applied. A prompt rule alone was not enough: in a later run the model applied "x 1 000" twice and reported 18 billion inhabitants |
 | "periode 2026JJ00" in answers | Raw period codes leaked into the text | Prompt rule: periods and regions as people write them |
 | 3 of 4 groundedness failures were false alarms | The judge flagged Dutch number notation, the source mention and a period it could not see | The judge gets the agent's context and explicit rules on notation and units |
 
@@ -199,7 +215,7 @@ tagged by interface (`cli`, `streamlit`, `eval`) and carry the conversation's `t
 | | |
 |---|---|
 | Agent | LangGraph 1.x, LangChain |
-| LLM | Groq free tier (`openai/gpt-oss-120b`) or local Ollama |
+| LLM | Groq free tier (`openai/gpt-oss-120b`; `gpt-oss-20b` for development), experimental local mode with Ollama |
 | Retrieval | fastembed (local multilingual embeddings), BM25 with Dutch stemming, LangChain retriever |
 | Data | CBS OData v4 API, DuckDB, pandas |
 | Charts | Plotly |
@@ -226,7 +242,25 @@ Or use the command line (leave out the question for a chat with follow-ups):
 uv run statline-agent "Wat is de gemiddelde WOZ-waarde in Den Haag?" --open
 ```
 
-Run the checks and the evaluations:
+### Lighter models: more room on the free tier, or fully local
+
+Groq's free tier has a daily token limit per model (about 2–3 full evaluations with
+`gpt-oss-120b`). During development, a smaller Groq model has its own limit and is fast:
+
+```bash
+LLM_MODEL=openai/gpt-oss-20b
+```
+
+The agent can also run fully offline with [Ollama](https://ollama.com) (`LLM_PROVIDER=ollama`,
+default model `qwen3.5:4b`, fits in 16 GB RAM without a GPU). This is experimental: in a first
+test the 4B model went wrong at almost every step (table choice, measure codes, SQL), so a
+five-step agent clearly needs a larger model. The app checks at startup that Ollama is running
+and the model is downloaded (`ollama pull qwen3.5:4b`).
+
+Evaluations of other models are written to `evals/results/agent-<model>.json`; they appear in
+the model comparison but never replace the published per-case results.
+
+### Checks and evaluations
 
 ```bash
 uv run pytest

@@ -58,6 +58,7 @@ def test_expected_target_applies_the_unit() -> None:
 def test_unit_scale() -> None:
     assert unit_scale("x 1 000 euro") == 1000
     assert unit_scale("mln euro") == 1_000_000
+    assert unit_scale("per 1 000 inwoners") == 1  # a rate, not a multiplier
     assert unit_scale("aantal") == 1
 
 

@@ -82,6 +82,13 @@ class TurnResult:
 def friendly_error(exc: Exception) -> str:
     """A message for the user instead of a stack trace."""
     text = str(exc)
+    if type(exc).__name__ in {"LLMUnavailableError", "MissingAPIKeyError"}:
+        return text  # already written for the person running the app
+    if type(exc).__name__ == "ConnectError" or "Failed to connect to Ollama" in text:
+        return (
+            "Het lokale taalmodel (Ollama) is niet bereikbaar. Start Ollama en stel je vraag "
+            "opnieuw."
+        )
     if "rate_limit" in text or "429" in text:
         return (
             "De gratis limiet van het taalmodel is even bereikt. "

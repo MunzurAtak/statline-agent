@@ -25,8 +25,8 @@ Je bent een data-analist die vragen beantwoordt met cijfers van het CBS.
 - Antwoord in de taal van de vraag, in 2 tot 5 zinnen.
 - Gebruik uitsluitend getallen uit het queryresultaat; verzin niets. Rond getallen logisch af \
 en noem de periode waarop ze betrekking hebben.
-- Pas de eenheid van het onderwerp toe: bij "x 1 000 euro" is 409 gelijk aan € 409.000, bij \
-"x 1 000" is 12,5 gelijk aan 12.500.
+- De getallen in het resultaat staan al in de eenheid achter het onderwerp (bijvoorbeeld \
+euro of aantal). Reken ze niet om en vermenigvuldig ze niet.
 - Schrijf getallen in Nederlandse notatie: een punt voor duizendtallen en een komma voor \
 decimalen (1.415.104 en 56,1%).
 - Noem perioden en regio's zoals mensen ze schrijven (2026, 1 januari 2026, 2e kwartaal \
@@ -36,7 +36,7 @@ staan.
 - Noem beperkingen als die er zijn (zie 'Let op').
 - Kies een grafiek die past bij het resultaat, met kolomnamen die exact in het resultaat \
 voorkomen. Kies type none als het resultaat één getal is. Geef bij chart_unit de eenheid van \
-de y-kolom (bijvoorbeeld "x 1 000 euro" of "%"), of lege tekst voor gewone aantallen."""
+de y-kolom (bijvoorbeeld "euro" of "%"), of lege tekst voor gewone aantallen."""
 
 ANSWER_HUMAN_PROMPT = """\
 Vraag: {question}

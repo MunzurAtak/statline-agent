@@ -8,6 +8,7 @@ from statline_agent.agent import AgentContext, build_graph
 from statline_agent.agent.nodes.plan import (
     DimensionChoice,
     QueryPlan,
+    match_measure,
     measure_labels,
     shortlist_measures,
 )
@@ -188,3 +189,26 @@ def test_shortlist_always_keeps_the_best_totals() -> None:
     ids = [m.identifier for m in short]
     assert "T1" in ids  # the total survives, although it shares no keyword with the question
     assert ids[0] == "T1" and len(ids) == 4  # table order is kept
+
+
+def test_match_measure_accepts_codes_lines_and_unique_titles() -> None:
+    shortlist = [
+        Measure(identifier="M1", title="Totaal bevolking"),
+        Measure(identifier="M2", title="Totaal bevolking"),
+        Measure(identifier="M3", title="Gehuwd"),
+    ]
+    labels = {"M1": "Naar leeftijd > Totaal bevolking", "M2": "Naar landsdeel > Totaal bevolking"}
+    assert match_measure("m1", shortlist, labels).identifier == "M1"  # type: ignore[union-attr]
+    line = "Naar landsdeel > Totaal bevolking (M2) [x 1 000]"  # small models copy the line
+    assert match_measure(line, shortlist, labels).identifier == "M2"  # type: ignore[union-attr]
+    assert match_measure("Naar leeftijd > Totaal bevolking", shortlist, labels).identifier == "M1"  # type: ignore[union-attr]
+    assert match_measure("Gehuwd", shortlist, labels).identifier == "M3"  # type: ignore[union-attr]
+    assert match_measure("Totaal bevolking", shortlist, labels) is None  # ambiguous: no guess
+    assert match_measure("Bestaat niet", shortlist, labels) is None
+
+
+def test_filter_on_a_missing_dimension_becomes_a_note(context: AgentContext) -> None:
+    plan = make_plan(filters=[DimensionChoice(dimension="Wijken", values=["Kralingen"])])
+    state = run(context, plan)
+    assert state["filters"]["RegioS"] == ["NL01"]
+    assert any("geen indeling Wijken" in note for note in state["plan_notes"])

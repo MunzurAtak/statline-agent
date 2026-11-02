@@ -170,6 +170,9 @@ def main() -> None:
             "haalt de data op, schrijft zelf een analyse en laat zien hoe hij eraan kwam."
         )
         st.toggle("Laat mij de tabel bevestigen", key="confirm")
+        settings = get_settings()
+        where = "lokaal via Ollama" if settings.llm_provider == "ollama" else "via Groq"
+        st.caption(f"Taalmodel: {settings.llm_model} ({where})")
         if st.button("Nieuw gesprek"):
             del st.session_state.thread_id
             st.rerun()

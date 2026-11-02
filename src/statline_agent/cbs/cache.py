@@ -12,10 +12,12 @@ import duckdb
 import pandas as pd
 
 from statline_agent.cbs.client import CBSClient, CBSError
+from statline_agent.cbs.units import normalize_unit
 
 DEFAULT_DB_PATH = Path(".cache/statline.duckdb")
 QUERY_VIEW = "data"  # generated SQL always reads from this view
 MAX_DISTINCT_SHOWN = 12
+CACHE_VERSION = 3  # bump when the cached data changes (v2: units applied; v3: "1 000 euro" too)
 
 
 class NoDataError(CBSError):
@@ -36,7 +38,7 @@ def cache_table_name(table_id: str, filters: Mapping[str, Sequence[str]] | None 
     key = json.dumps({k: sorted(v) for k, v in sorted((filters or {}).items())})
     digest = hashlib.sha256(key.encode()).hexdigest()[:10]
     safe_id = re.sub(r"\W", "_", table_id.lower())
-    return f"obs_{safe_id}_{digest}"
+    return f"obs{CACHE_VERSION}_{safe_id}_{digest}"
 
 
 def _label(codes: "pd.Series[str]", titles: Mapping[str, str]) -> "pd.Series[str]":
@@ -141,7 +143,12 @@ class DataStore:
 
         measures = self._client.get_measures(table_id)
         df["Measure_title"] = _label(df["Measure"], {m.identifier: m.title for m in measures})
-        df["Unit"] = df["Measure"].map({m.identifier: m.unit for m in measures}).fillna("")
+        # Plain numbers: 409 in "x 1 000 euro" is stored as 409000 with unit "euro".
+        units = {m.identifier: normalize_unit(m.unit) for m in measures}
+        factor = df["Measure"].map({code: scale for code, (scale, _) in units.items()})
+        df["Value"] = pd.to_numeric(df["Value"], errors="coerce") * factor.fillna(1.0)
+        df["Unit"] = df["Measure"].map({code: unit for code, (_, unit) in units.items()})
+        df["Unit"] = df["Unit"].fillna("")
 
         for dim in self._client.get_dimensions(table_id):
             if dim.identifier not in df.columns:

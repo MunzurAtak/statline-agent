@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from langchain_core.documents import Document
 from langchain_core.embeddings import DeterministicFakeEmbedding
@@ -15,6 +16,7 @@ from statline_agent.agent.nodes.search import TableChoice
 from statline_agent.catalog import CatalogIndex, HybridCatalogRetriever
 from statline_agent.cbs import CBSClient, DataStore
 from statline_agent.charts import ChartSpec
+from statline_agent.llm import LLMUnavailableError
 from statline_agent.ui import app
 from statline_agent.ui.turns import TurnResult, describe_step, friendly_error
 from tests.fakes import FakeStructuredChatModel
@@ -108,6 +110,9 @@ def test_llm_errors_are_shown_as_a_message(
 def test_friendly_error_messages() -> None:
     assert "limiet" in friendly_error(RuntimeError("429 Too Many Requests"))
     assert "ValueError" in friendly_error(ValueError("x"))
+    unavailable = LLMUnavailableError("Ollama does not have the model 'x'. ollama pull x")
+    assert friendly_error(unavailable) == str(unavailable)
+    assert "Ollama" in friendly_error(httpx.ConnectError("connection refused"))
 
 
 def test_describe_step_summarizes_updates() -> None:
