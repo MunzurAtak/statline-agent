@@ -19,7 +19,7 @@ Built with **LangGraph** and **LangChain**, using only free tools and APIs.
 ### At a glance
 
 <!-- AT_A_GLANCE:START -->
-On 12 test questions with `openai/gpt-oss-120b`: the right CBS table **92%** of the time, the correct number in the answer **92%**, and **91%** of the answers fully supported by the data (LLM judge). Median 24 s per question.
+On 12 test questions with `openai/gpt-oss-120b`: the right CBS table **100%** of the time, the correct number in the answer **100%**, and **100%** of the answers fully supported by the data (LLM judge). Median 25 s per question.
 <!-- AT_A_GLANCE:END -->
 Every number is checked against an independent, LLM-free lookup in the CBS data
 ([details](#end-to-end-evaluation)). 175+ tests run without network or API key; the app ships
@@ -184,20 +184,20 @@ follow-up questions, a municipality/province ambiguity and an off-topic question
 <!-- AGENT_EVAL:START -->
 | Case | Table | Answer | Grounded | SQL attempts | Seconds | LLM calls |
 |---|---|---|---|---|---|---|
-| inwoners-rotterdam | ✅ 03759ned | ✅ | ✅ | 1 | 8.2 | 5 |
-| inwoners-gemeente-utrecht | ✅ 03759ned | ✅ | ✅ | 1 | 6.4 | 5 |
-| inwoners-provincie-utrecht | ✅ 03759ned | ✅ | ✅ | 1 | 20.6 | 5 |
-| vervolgvraag-amsterdam | ✅ 03759ned | ✅ | ✅ | 1 | 48.4 | 9 |
-| vervolgvraag-provincie | ✅ 03759ned | ✅ | ✅ | 1 | 43.7 | 9 |
-| groei-amsterdam | ✅ 37259ned | ✅ | ✅ | 1 | 29.7 | 5 |
-| inwoners-nederland | ❌ 85524NED | ❌ | ❌ | 1 | 30.3 | 5 |
-| woz-den-haag | ✅ 85036NED | ✅ | ✅ | 1 | 26.0 | 5 |
-| woz-den-haag-groei | ✅ 85036NED | ✅ | ✅ | 1 | 32.4 | 5 |
-| woz-rotterdam-2020 | ✅ 85036NED | ✅ | ✅ | 1 | 21.9 | 5 |
-| faillissementen-2024 | ✅ 82242NED | ✅ | ✅ | 1 | 20.5 | 5 |
-| off-topic | ✅  | ✅ | - | - | 7.7 | 2 |
+| inwoners-rotterdam | ✅ 03759ned | ✅ | ✅ | 1 | 14.9 | 5 |
+| inwoners-gemeente-utrecht | ✅ 03759ned | ✅ | ✅ | 1 | 9.2 | 5 |
+| inwoners-provincie-utrecht | ✅ 03759ned | ✅ | ✅ | 1 | 11.0 | 5 |
+| vervolgvraag-amsterdam | ✅ 03759ned | ✅ | ✅ | 1 | 46.5 | 9 |
+| vervolgvraag-provincie | ✅ 03759ned | ✅ | ✅ | 1 | 52.2 | 9 |
+| groei-amsterdam | ✅ 37259ned | ✅ | ✅ | 1 | 38.1 | 5 |
+| inwoners-nederland | ✅ 85496NED | ✅ | ✅ | 1 | 30.2 | 5 |
+| woz-den-haag | ✅ 85036NED | ✅ | ✅ | 1 | 29.3 | 5 |
+| woz-den-haag-groei | ✅ 85036NED | ✅ | ✅ | 2 | 42.8 | 6 |
+| woz-rotterdam-2020 | ✅ 85036NED | ✅ | ✅ | 1 | 20.6 | 5 |
+| faillissementen-2024 | ✅ 82242NED | ✅ | ✅ | 1 | 19.7 | 5 |
+| off-topic | ✅  | ✅ | - | - | 13.2 | 2 |
 
-**Table accuracy:** 92% · **Answer accuracy:** 92% · **Groundedness:** 91% · **Median time:** 23.9 s · **Avg LLM calls:** 5.4
+**Table accuracy:** 100% · **Answer accuracy:** 100% · **Groundedness:** 100% · **Median time:** 25.0 s · **Avg LLM calls:** 5.5
 <!-- AGENT_EVAL:END -->
 
 ### Model comparison
@@ -210,7 +210,7 @@ rows are comparable. Local times are measured on a laptop CPU.
 <!-- MODEL_COMPARISON:START -->
 | Model | Runs on | Table | Answer | Grounded | Median time | Judge |
 |---|---|---|---|---|---|---|
-| `openai/gpt-oss-120b` | Groq (cloud) | 92% | 92% | 91% | 23.9 s | `openai/gpt-oss-20b` |
+| `openai/gpt-oss-120b` | Groq (cloud) | 100% | 100% | 100% | 25.0 s | `openai/gpt-oss-20b` |
 <!-- MODEL_COMPARISON:END -->
 
 ### What the first run caught
