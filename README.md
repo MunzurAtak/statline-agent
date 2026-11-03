@@ -16,6 +16,8 @@ Amsterdam?"), can ask you to confirm the table it chose, and shows how it got to
 Built with **LangGraph** and **LangChain**, using only free tools and APIs.
 **[Try the live demo](https://statline-agent.streamlit.app)** (in Dutch; a few questions per visitor).
 
+![Demo: a question, a follow-up question and a chart, with the steps the agent took](docs/demo.gif)
+
 ### At a glance
 
 <!-- AT_A_GLANCE:START -->

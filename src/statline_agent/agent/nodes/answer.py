@@ -70,10 +70,16 @@ def describe_measures(titles: list[str], units: list[str]) -> str:
 
 
 def format_result(columns: list[str], rows: list[dict[str, Any]]) -> str:
-    """Compact, CSV-like text; floats rounded to keep the prompt small."""
+    """Compact, CSV-like text; floats rounded to keep the prompt small.
+
+    Whole numbers are written without decimals: "941927.00" made the model answer
+    "941.927,00 inwoners".
+    """
 
     def cell(value: Any) -> str:
-        return f"{value:.2f}" if isinstance(value, float) else str(value)
+        if isinstance(value, float):
+            return str(int(value)) if value.is_integer() else f"{value:.2f}"
+        return str(value)
 
     lines = [" | ".join(columns)]
     lines += [" | ".join(cell(row[c]) for c in columns) for row in rows[:MAX_ROWS_IN_PROMPT]]

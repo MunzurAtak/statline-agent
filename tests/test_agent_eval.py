@@ -93,7 +93,7 @@ def test_judge_sees_result_context_and_answer() -> None:
     )
     assert verdict.grounded
     sent = prompt_text(llm.prompts[0])
-    assert "n\n5.00" in sent and "Het zijn er 5." in sent and "Tabel: T1 Test" in sent
+    assert "n\n5\n" in sent and "Het zijn er 5." in sent and "Tabel: T1 Test" in sent
 
 
 def test_judge_verdict_follows_the_issues() -> None:

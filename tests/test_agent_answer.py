@@ -62,7 +62,7 @@ def test_full_run_produces_answer_chart_and_source(context: AgentContext) -> Non
     # The answer prompt contained the actual query result
     assert isinstance(context.llm, FakeStructuredChatModel)
     sent = prompt_text(context.llm.prompts[-1])
-    assert "jaar | inwoners" in sent and "1995 | 598239.00" in sent
+    assert "jaar | inwoners" in sent and "1995 | 598239" in sent
     # ...and the measure with its group and unit, so the answer can apply the unit
     assert "Onderwerpen: Bevolking > Totale bevolking (eenheid: aantal)" in sent
 
@@ -113,4 +113,5 @@ def test_format_result_rounds_floats_and_truncates() -> None:
     lines = text.splitlines()
     assert lines[0] == "jaar | waarde"
     assert lines[2] == "1901 | 0.33"
+    assert format_result(["n"], [{"n": 941927.0}]) == "n\n941927"  # no ",00" for counts
     assert lines[-1] == "... (10 rijen weggelaten)"
