@@ -1,6 +1,8 @@
 # statline-agent
 
+[![Open the demo](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://statline-agent.streamlit.app)
 [![CI](https://github.com/MunzurAtak/statline-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/MunzurAtak/statline-agent/actions/workflows/ci.yml)
+[![Docker](https://github.com/MunzurAtak/statline-agent/actions/workflows/docker.yml/badge.svg)](https://github.com/MunzurAtak/statline-agent/pkgs/container/statline-agent)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![LangGraph](https://img.shields.io/badge/LangGraph-1.x-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -12,6 +14,27 @@ numbers, a chart and a source link. It runs as a chat app with follow-up questio
 Amsterdam?"), can ask you to confirm the table it chose, and shows how it got to every answer.
 
 Built with **LangGraph** and **LangChain**, using only free tools and APIs.
+**[Try the live demo](https://statline-agent.streamlit.app)** (in Dutch; a few questions per visitor).
+
+### At a glance
+
+<!-- AT_A_GLANCE:START -->
+On 12 test questions with `openai/gpt-oss-120b`: the right CBS table **92%** of the time, the correct number in the answer **92%**, and **91%** of the answers fully supported by the data (LLM judge). Median 24 s per question.
+<!-- AT_A_GLANCE:END -->
+Every number is checked against an independent, LLM-free lookup in the CBS data
+([details](#end-to-end-evaluation)). 175+ tests run without network or API key; the app ships
+as a Docker image and the evaluation runs on GitHub Actions.
+
+### In plain words
+
+1. **Find the table.** You ask "Hoeveel inwoners heeft Rotterdam?". The agent searches the
+   descriptions of ~1,300 CBS tables, like a librarian, and picks the one that fits.
+2. **Pick exactly the data.** It decides which figures, regions and years are needed; code
+   then translates "Rotterdam" into CBS's own code (`GM0599`), so nothing is guessed.
+3. **Calculate.** It writes a database query on that data, runs it, and fixes the query
+   itself when it fails.
+4. **Answer with proof.** The answer comes with a chart, a link to the source table and a
+   "how did I get this?" panel with every step, the filters and the query.
 
 ```text
 $ statline-agent "Hoe is de bevolking van Rotterdam en Amsterdam sinds 2015 veranderd?"
@@ -221,19 +244,26 @@ tagged by interface (`cli`, `streamlit`, `eval`) and carry the conversation's `t
 | Charts | Plotly |
 | UI | Streamlit chat app (with `AppTest` UI tests) |
 | Observability | LangSmith tracing (optional) |
-| Quality | pytest (130+ tests, no network or API key needed), mypy `--strict`, ruff, pre-commit, GitHub Actions |
+| Quality | pytest (175+ tests, no network or API key needed), mypy `--strict`, ruff, pre-commit, GitHub Actions |
+| Delivery | Streamlit Community Cloud, Docker (GitHub Container Registry), scheduled and on-demand workflows |
 
 ## Quickstart
 
 Requires [uv](https://docs.astral.sh/uv/) and a free [Groq API key](https://console.groq.com).
+The search index is part of the repository, so there is nothing to build first.
 
 ```bash
 git clone https://github.com/MunzurAtak/statline-agent.git
 cd statline-agent
 cp .env.example .env            # add your GROQ_API_KEY
 uv sync
-uv run python scripts/build_catalog_index.py    # ~2-5 min the first time
 uv run streamlit run streamlit_app.py           # chat app on http://localhost:8501
+```
+
+Or with Docker, without installing Python:
+
+```bash
+docker run -p 8501:8501 -e GROQ_API_KEY=... ghcr.io/munzuratak/statline-agent:latest
 ```
 
 Or use the command line (leave out the question for a chat with follow-ups):
@@ -269,6 +299,16 @@ uv run python evals/run_retrieval_eval.py
 uv run python evals/run_agent_eval.py
 ```
 
+## Deployment and automation
+
+| What | How |
+|---|---|
+| Live demo | [Streamlit Community Cloud](https://streamlit.io/cloud) (free), deployed from `main`; the API key is a Streamlit secret and `DEMO_MAX_QUESTIONS` limits questions per visitor, so the free daily token limit is shared fairly |
+| Docker image | Multi-stage build with uv; the embedding model is baked in. Built and smoke-tested on every pull request, published to GitHub Container Registry from `main` and version tags ([`docker.yml`](.github/workflows/docker.yml)) |
+| Checks | Lint, formatting, type check and tests on every push ([`ci.yml`](.github/workflows/ci.yml)) |
+| Search index | Rebuilt monthly from the live CBS catalog and committed when it changed ([`refresh-catalog.yml`](.github/workflows/refresh-catalog.yml)); stored compactly (float16 vectors, ~1 MB) |
+| Evaluation | On demand from the Actions tab, for either model, optionally committing the results ([`eval.yml`](.github/workflows/eval.yml)) |
+
 ## Project structure
 
 ```text
@@ -283,9 +323,12 @@ src/statline_agent/
 ├── observability.py  # optional LangSmith tracing
 └── cli.py        # streaming command line interface
 streamlit_app.py  # entry point of the chat app
+data/             # search index over the CBS catalog (refreshed monthly)
 evals/            # test questions, evaluation runners and published results
 scripts/          # index builder, search comparison, diagram generator
 tests/            # unit and graph tests with recorded CBS responses and a fake LLM
+Dockerfile, compose.yaml   # container image (optionally with a local Ollama)
+.github/workflows/         # CI, Docker, catalog refresh, evaluation
 ```
 
 ## Roadmap
@@ -296,7 +339,7 @@ tests/            # unit and graph tests with recorded CBS responses and a fake 
 - [x] Conversation memory, follow-up questions and human-in-the-loop (checkpointer, interrupts)
 - [x] Streamlit chat app with live progress, charts and explanations
 - [x] End-to-end evaluation and tracing with LangSmith
-- [ ] Public demo and Docker image
+- [x] Public demo, Docker image, scheduled index refresh and evaluation on GitHub Actions
 
 ## License
 

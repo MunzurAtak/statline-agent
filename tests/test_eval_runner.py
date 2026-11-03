@@ -101,3 +101,17 @@ def test_comparison_table_lists_the_published_setup_first(tmp_path: Path) -> Non
     assert "`openai/gpt-oss-120b` | Groq (cloud) | 100% | 90% | 90% | 20.0 s" in lines[2]
     assert "`qwen3.5:4b` | Ollama (laptop CPU) | 100% | 95%" in lines[3]
     assert "`openai/gpt-oss-20b`" in lines[4]
+
+
+def test_at_a_glance_sentence() -> None:
+    runner = load_runner()
+    summary = {
+        "cases": 12,
+        "table_accuracy": 0.917,
+        "answer_accuracy": 1.0,
+        "groundedness": 0.909,
+        "median_seconds": 23.9,
+    }
+    text = runner.at_a_glance(summary, Settings(llm_provider="groq", _env_file=None))
+    assert text.startswith("On 12 test questions with `openai/gpt-oss-120b`")
+    assert "**92%**" in text and "**100%**" in text and "Median 24 s" in text

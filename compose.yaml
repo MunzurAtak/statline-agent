@@ -1,0 +1,26 @@
+# Run the chat app in Docker: docker compose up   (then open http://localhost:8501)
+# Settings come from .env (copy .env.example). For a fully local model add the Ollama service:
+#   docker compose --profile local up
+# set LLM_PROVIDER=ollama and OLLAMA_BASE_URL=http://ollama:11434 in .env, and download the
+# model once: docker compose exec ollama ollama pull qwen3.5:4b
+services:
+  app:
+    image: ghcr.io/munzuratak/statline-agent:latest
+    build: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - app-state:/app/.cache # data cache and conversations survive a restart
+
+  ollama:
+    image: ollama/ollama:0.12.6
+    profiles: [local]
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  app-state:
+  ollama-models:

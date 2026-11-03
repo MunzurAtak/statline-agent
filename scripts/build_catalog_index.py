@@ -17,7 +17,7 @@ from statline_agent.catalog import (
 from statline_agent.cbs import CBSClient
 from statline_agent.config import get_settings
 
-METADATA_CACHE = Path(".cache/catalog_metadata.json")
+METADATA_CACHE = Path("data/catalog_metadata.json")  # committed: refreshes only fetch new tables
 
 
 def print_progress(done: int, total: int) -> None:

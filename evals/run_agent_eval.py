@@ -46,6 +46,7 @@ RESULTS_DIR = EVALS_DIR / "results"
 README = EVALS_DIR.parent / "README.md"
 START, END = "<!-- AGENT_EVAL:START -->", "<!-- AGENT_EVAL:END -->"
 COMPARE_START, COMPARE_END = "<!-- MODEL_COMPARISON:START -->", "<!-- MODEL_COMPARISON:END -->"
+GLANCE_START, GLANCE_END = "<!-- AT_A_GLANCE:START -->", "<!-- AT_A_GLANCE:END -->"
 WHERE = {"groq": "Groq (cloud)", "ollama": "Ollama (laptop CPU)"}
 
 
@@ -228,7 +229,19 @@ def main() -> None:
     print(f"Saved results to {RESULTS_DIR / name}.json/.md")
     if name == "agent":
         update_readme(report)
+        update_readme(at_a_glance(summary, settings), GLANCE_START, GLANCE_END)
     update_readme(comparison_table(RESULTS_DIR), COMPARE_START, COMPARE_END)
+
+
+def at_a_glance(summary: dict[str, float], settings: Settings) -> str:
+    """The headline numbers at the top of the README (published setup only)."""
+    return (
+        f"On {int(summary['cases'])} test questions with `{settings.llm_model}`: the right CBS "
+        f"table **{summary['table_accuracy']:.0%}** of the time, the correct number in the "
+        f"answer **{summary['answer_accuracy']:.0%}**, and **{summary['groundedness']:.0%}** "
+        f"of the answers fully supported by the data (LLM judge). Median "
+        f"{summary['median_seconds']:.0f} s per question.\n"
+    )
 
 
 def comparison_table(results_dir: Path) -> str:

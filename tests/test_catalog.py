@@ -58,6 +58,24 @@ def test_index_build_save_load_roundtrip(tmp_path: Path) -> None:
     # The fake embedding is deterministic: identical text gives an identical vector.
     hits = loaded.vector_store.similarity_search(docs[1].page_content, k=1)
     assert hits[0].metadata["table_id"] == "B2"
+    # Compact format: float16 vectors, one document per line, sorted by id
+    assert (tmp_path / "vectors.npz").exists()
+    lines = (tmp_path / "documents.json").read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "[" and lines[1].startswith('{"id": "A1"') and lines[-1] == "]"
+
+
+def test_index_loads_the_legacy_json_format(tmp_path: Path) -> None:
+    embeddings = DeterministicFakeEmbedding(size=16)
+    docs = [dataset_to_document(make_dataset("A1", "Bevolking per gemeente"))]
+    index = CatalogIndex.build(docs, embeddings)
+    index.save(tmp_path)
+    (tmp_path / "vectors.npz").unlink()
+    index.vector_store.dump(str(tmp_path / "vectors.json"))  # how indexes were saved before
+
+    loaded = CatalogIndex.load(tmp_path, embeddings)
+    assert loaded.vector_store.similarity_search(docs[0].page_content, k=1)[0].id == "A1"
+    loaded.save(tmp_path)  # converting removes the large legacy file
+    assert not (tmp_path / "vectors.json").exists()
 
 
 def test_load_without_index_gives_helpful_error(tmp_path: Path) -> None:

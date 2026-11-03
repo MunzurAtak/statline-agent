@@ -12,11 +12,12 @@ from statline_agent.config import Settings
 
 def configure_tracing(settings: Settings) -> bool:
     """Enable LangSmith tracing if configured. Returns whether tracing is on."""
-    if not settings.langsmith_tracing or settings.langsmith_api_key is None:
+    key = settings.langsmith_api_key.get_secret_value() if settings.langsmith_api_key else ""
+    if not settings.langsmith_tracing or not key:  # an empty key, e.g. an unset CI secret
         os.environ["LANGSMITH_TRACING"] = "false"
         return False
     os.environ["LANGSMITH_TRACING"] = "true"
-    os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key.get_secret_value()
+    os.environ["LANGSMITH_API_KEY"] = key
     os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project
     if settings.langsmith_endpoint:
         os.environ["LANGSMITH_ENDPOINT"] = settings.langsmith_endpoint

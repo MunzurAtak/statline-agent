@@ -1,0 +1,45 @@
+name: Refresh catalog index
+
+# CBS publishes new tables every week. Once a month the search index in data/ is rebuilt
+# (metadata of tables that are already known comes from data/catalog_metadata.json) and
+# committed when it changed.
+on:
+  schedule:
+    - cron: "17 4 1 * *" # 04:17 UTC on the 1st of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Rebuild the index
+        run: uv run python scripts/build_catalog_index.py
+      - name: Check that the index loads
+        run: >-
+          uv run python -c "from statline_agent.catalog import CatalogIndex, FastEmbedEmbeddings;
+          from statline_agent.config import get_settings; s = get_settings();
+          index = CatalogIndex.load(s.catalog_index_dir, FastEmbedEmbeddings(s.embedding_model));
+          ids = {str(d.id).lower() for d in index.documents};
+          assert len(index) > 1000 and '03759ned' in ids, len(index);
+          print(len(index), 'tables')"
+      - name: Commit when the index changed
+        run: |
+          if git diff --quiet -- data/ && [ -z "$(git ls-files --others --exclude-standard data/)" ]; then
+            echo "The catalog did not change."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git commit -m "chore: refresh CBS catalog index"
+          git push

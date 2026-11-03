@@ -16,6 +16,7 @@ from statline_agent.agent.nodes.search import TableChoice
 from statline_agent.catalog import CatalogIndex, HybridCatalogRetriever
 from statline_agent.cbs import CBSClient, DataStore
 from statline_agent.charts import ChartSpec
+from statline_agent.config import Settings
 from statline_agent.llm import LLMUnavailableError
 from statline_agent.ui import app
 from statline_agent.ui.turns import TurnResult, describe_step, friendly_error
@@ -89,6 +90,19 @@ def test_confirmation_buttons_then_answer(fake_agent: None) -> None:
     assert not page.exception
     assert any("598.239" in m.value for m in page.markdown)
     assert page.session_state.pending is None
+
+
+def test_demo_limit_disables_questions(fake_agent: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    limited = Settings(demo_max_questions=1, _env_file=None)
+    monkeypatch.setattr(app, "get_settings", lambda: limited)
+    page = AppTest.from_file(APP_FILE).run()
+    assert any("nog 1 vragen" in c.value for c in page.caption)
+    next(b for b in page.button if b.label == app.EXAMPLES[0]).click().run()
+
+    assert not page.exception
+    assert any("598.239" in m.value for m in page.markdown)  # the answer is still shown
+    assert page.chat_input[0].disabled
+    assert "alle vragen van deze demo" in page.info[-1].value
 
 
 class BrokenGraph:

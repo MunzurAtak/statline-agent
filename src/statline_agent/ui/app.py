@@ -1,5 +1,6 @@
 """Streamlit chat app. Run with: uv run streamlit run streamlit_app.py"""
 
+import os
 import uuid
 from dataclasses import dataclass, replace
 from typing import Any, cast
@@ -17,6 +18,7 @@ from statline_agent.ui.turns import TurnResult, describe_step, friendly_error
 
 Graph = CompiledStateGraph[AgentState, AgentContext, AgentState, AgentState]
 
+REPO_URL = "https://github.com/MunzurAtak/statline-agent"
 EXAMPLES = [
     "Hoeveel inwoners heeft Rotterdam?",
     "Hoe is de gemiddelde WOZ-waarde in Utrecht sinds 2015 veranderd?",
@@ -37,8 +39,22 @@ class Pending:
 @st.cache_resource(show_spinner="Agent laden (zoekindex en model)...")
 def load_agent() -> tuple[Graph, AgentContext]:
     """Loaded once per server process and shared by all sessions."""
-    checkpointer = sqlite_checkpointer(get_settings().catalog_index_dir.parent / "chats.sqlite")
+    checkpointer = sqlite_checkpointer(get_settings().chat_db)
     return build_graph(checkpointer=checkpointer), create_context()
+
+
+def load_streamlit_secrets() -> None:
+    """On Streamlit Community Cloud the API key is a secret, not a .env file.
+
+    Root-level secrets become environment variables, which Settings reads. Done explicitly,
+    before the settings are first read, instead of relying on when Streamlit loads them.
+    """
+    try:
+        secrets = {key: value for key, value in st.secrets.items() if isinstance(value, str)}
+    except Exception:  # no secrets.toml: running locally with .env
+        return
+    for key, value in secrets.items():
+        os.environ.setdefault(key, value)
 
 
 def init_session() -> None:
@@ -46,6 +62,17 @@ def init_session() -> None:
         st.session_state.thread_id = str(uuid.uuid4())
         st.session_state.turns = []
         st.session_state.pending = None
+    # Counted per visitor, not per conversation: "Nieuw gesprek" does not reset it.
+    st.session_state.setdefault("questions_asked", 0)
+
+
+def questions_left() -> int | None:
+    """None when there is no limit (local use)."""
+    limit = get_settings().demo_max_questions
+    if limit <= 0:
+        return None
+    asked: int = st.session_state.questions_asked
+    return max(limit - asked, 0)
 
 
 # -- rendering -----------------------------------------------------------------------
@@ -161,7 +188,9 @@ def render_pending(pending: Pending) -> None:
 
 def main() -> None:
     st.set_page_config(page_title="StatLine Agent", page_icon="📊")
+    load_streamlit_secrets()
     init_session()
+    left = questions_left()
 
     with st.sidebar:
         st.header("StatLine Agent")
@@ -173,6 +202,9 @@ def main() -> None:
         settings = get_settings()
         where = "lokaal via Ollama" if settings.llm_provider == "ollama" else "via Groq"
         st.caption(f"Taalmodel: {settings.llm_model} ({where})")
+        if left is not None:
+            st.caption(f"Demo: nog {left} vragen in deze sessie.")
+        st.markdown(f"[Code en uitleg op GitHub]({REPO_URL})")
         if st.button("Nieuw gesprek"):
             del st.session_state.thread_id
             st.rerun()
@@ -182,9 +214,18 @@ def main() -> None:
         render_turn(turn, number)
 
     pending: Pending | None = st.session_state.pending
-    question = st.chat_input("Stel een vraag over CBS-cijfers", disabled=pending is not None)
+    limit_reached = left == 0
+    question = st.chat_input(
+        "Stel een vraag over CBS-cijfers", disabled=pending is not None or limit_reached
+    )
     if pending is not None:
         render_pending(pending)
+        return
+    if limit_reached:
+        st.info(
+            "Je hebt alle vragen van deze demo gebruikt; de gratis limiet van het taalmodel "
+            f"is gedeeld met andere bezoekers. Draai de agent zelf via [GitHub]({REPO_URL})."
+        )
         return
 
     if not st.session_state.turns:
@@ -194,6 +235,7 @@ def main() -> None:
                 question = example
 
     if question:
+        st.session_state.questions_asked += 1
         with st.chat_message("user"):
             st.markdown(question)
         with st.chat_message("assistant"):

@@ -1,0 +1,16 @@
+# Only what the image needs; never secrets or local state
+.env
+.cache/
+.venv/
+.git/
+.github/
+**/__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+tests/
+evals/
+docs/
+scripts/
+*.sqlite
+*.duckdb

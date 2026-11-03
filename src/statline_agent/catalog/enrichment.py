@@ -68,6 +68,8 @@ def fetch_all_metadata(
                 on_progress(done, len(todo))
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = [asdict(meta) for meta in cached.values()]
-    cache_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    # One table per line, sorted: the file is committed, so refreshes give readable diffs.
+    lines = [json.dumps(asdict(cached[key]), ensure_ascii=False) for key in sorted(cached)]
+    text = "[\n" + ",\n".join(lines) + "\n]\n"
+    cache_path.write_text(text, encoding="utf-8", newline="\n")
     return cached

@@ -26,6 +26,9 @@ def test_tracing_is_off_by_default() -> None:
 
 def test_tracing_needs_an_api_key() -> None:
     assert configure_tracing(Settings(langsmith_tracing=True, _env_file=None)) is False
+    # An unset GitHub secret arrives as an empty string
+    empty = Settings(langsmith_tracing=True, langsmith_api_key=SecretStr(""), _env_file=None)
+    assert configure_tracing(empty) is False
 
 
 def test_tracing_exports_langsmith_variables() -> None:

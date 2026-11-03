@@ -41,7 +41,11 @@ class Settings(BaseSettings):
     ollama_keep_alive: str = "30m"  # keep the model in memory between questions
 
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    catalog_index_dir: Path = Path(".cache/catalog_index")
+    # Shipped with the repository (refreshed by .github/workflows/refresh-catalog.yml).
+    catalog_index_dir: Path = Path("data/catalog_index")
+    chat_db: Path = Path(".cache/chats.sqlite")  # conversations of the chat app
+    # Public demo: questions per visitor, to protect the free daily token limit (0 = no limit).
+    demo_max_questions: int = 0
 
     # Optional tracing with LangSmith (free Developer plan). Off unless enabled in .env.
     langsmith_tracing: bool = False
