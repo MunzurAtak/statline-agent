@@ -4,6 +4,20 @@ All notable changes to this project. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-11-03
+
+### Fixed
+
+- Whole numbers are passed to the model without decimals, so answers no longer read
+  "941.927,00 inwoners". This came in with 0.1.0, where CBS units are applied in code and
+  every value became a decimal number.
+
+### Documentation
+
+- End-to-end evaluation of `gpt-oss-120b`, run on GitHub Actions: the right table, the
+  correct number and a fully grounded answer on all 12 test questions (was 92%, 92% and 91%).
+- Demo GIF in the README.
+
 ## [0.1.0] - 2026-11-03
 
 First public release.
@@ -41,4 +55,5 @@ First public release.
 - Docker image on GitHub Container Registry; GitHub Actions for CI, Docker, the monthly index
   refresh and on-demand evaluations.
 
+[0.1.1]: https://github.com/MunzurAtak/statline-agent/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/MunzurAtak/statline-agent/releases/tag/v0.1.0

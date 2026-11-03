@@ -1,6 +1,6 @@
 [project]
 name = "statline-agent"
-version = "0.1.0"
+version = "0.1.1"
 description = "An AI data analyst agent for Dutch open data (CBS StatLine), built with LangGraph."
 readme = "README.md"
 license = "MIT"
